@@ -687,3 +687,16 @@ INSERT OR IGNORE INTO store_config(k, v) VALUES ('recall_days', '90');
 INSERT OR IGNORE INTO store_config(k, v) VALUES ('follow_up_days', '3');
 INSERT OR IGNORE INTO store_config(k, v) VALUES ('receipt_width', '58');
 INSERT OR IGNORE INTO store_config(k, v) VALUES ('replenish_days', '7');
+
+-- ============================================================================
+-- 34. service_category 服务分类（v1.3 洗护美容价目）
+--    价目表的列，归入洗护类 / 美容类；隐藏的分类保留在价目表列中但不可开单。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS service_category (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT    NOT NULL,                  -- 分类名称，如「精洗」「剪毛造型」
+  degree     TEXT    NOT NULL DEFAULT 'SHOWER', -- 服务大类：SHOWER=洗护类 / BEAUTY=美容类
+  sort_no    INTEGER NOT NULL DEFAULT 0,        -- 排序号，小的在前（分类条与价目表列顺序）
+  is_visible INTEGER NOT NULL DEFAULT 1         -- 1=显示（可开单） 0=隐藏（价目表保留列，不可开单）
+);
+CREATE INDEX IF NOT EXISTS idx_service_category_sort ON service_category(sort_no, id);

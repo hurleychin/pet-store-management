@@ -90,6 +90,16 @@ public class UiHelper {
         }
     }
 
+    /** 服务大类：SHOWER=洗护类 / BEAUTY=美容类 */
+    public String degree(String d) {
+        if (d == null) return "—";
+        switch (d) {
+            case "SHOWER": return "洗护类";
+            case "BEAUTY": return "美容类";
+            default: return d;
+        }
+    }
+
     public String species(String s) {
         if (s == null) return "—";
         switch (s) {

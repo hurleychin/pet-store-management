@@ -21,9 +21,22 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /** 失败后应回到本模块列表页（而不是 Referer）的后台写接口 */
+    private static final java.util.Map<String, String> FAIL_BACK = new java.util.HashMap<>();
+    static {
+        FAIL_BACK.put("/services/categories/save", "/services");
+        FAIL_BACK.put("/services/save", "/services");
+    }
+
     @ExceptionHandler(BizException.class)
     public Object handleBiz(BizException e, HttpServletRequest req, RedirectAttributes ra) {
         log.warn("业务异常 code={} uri={} msg={}", e.getCode(), req.getRequestURI(), e.getMessage());
+        // 后台管理页的写操作失败时直接跳回原页面，用户才看得到提示
+        String back = FAIL_BACK.get(req.getRequestURI());
+        if (back != null) {
+            ra.addFlashAttribute("errMsg", e.getMessage());
+            return "redirect:" + back;
+        }
         String accept = req.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
             ra.addFlashAttribute("errMsg", e.getMessage());

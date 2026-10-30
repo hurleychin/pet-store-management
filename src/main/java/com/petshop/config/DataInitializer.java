@@ -40,6 +40,7 @@ public class DataInitializer implements ApplicationRunner {
         userService.initAdmin("admin", props.getDefaultAdminPassword());
         migrateV11();
         migrateV12();
+        migrateV13();
         if (props.isSampleData()) {
             seedSampleData();
         }
@@ -96,6 +97,22 @@ public class DataInitializer implements ApplicationRunner {
                     java.time.LocalDateTime.now().format(
                             java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             log.info("v1.2 迁移完成：批次/盘点/提成/客户经营/审计表就绪");
+        }
+    }
+
+    /**
+     * v1.3 迁移：洗护美容价目。本步只登记版本，新表 service_category 等由 schema.sql 的 IF NOT EXISTS 建出；
+     * 旧 service_item 的删除与数据迁移放到后续工单。可重复执行。
+     */
+    private void migrateV13() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS schema_version(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+        Integer done = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Integer.class);
+        if (done == null || done == 0) {
+            jdbc.update("INSERT INTO schema_version(version, applied_at) VALUES('v1.3', ?)",
+                    java.time.LocalDateTime.now().format(
+                            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            log.info("v1.3 迁移完成：洗护美容价目表结构就绪");
         }
     }
 

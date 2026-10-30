@@ -10,6 +10,89 @@
       <div th:replace="fragments/header :: flash"></div>
       <h1 class="page-title">服务项目 <span class="sub">体型四档价：小 / 中 / 大 / 巨型</span></h1>
 
+      <!-- 服务分类快捷条：按排序号列出全部分类（含隐藏），管理员可进入「修改美容洗护分类」 -->
+      <div class="tabs" id="categoryBar">
+        <a th:each="c : ${categories}" href="javascript:void(0)" class="cat-chip">
+          <b th:text="${c.name}">精洗</b>
+          <span class="small muted" th:text="' · ' + ${ui.degree(c.degree)}"> · 洗护类</span>
+          <span th:if="${!c.isVisible}" class="badge warn">隐藏</span>
+        </a>
+        <span th:if="${#lists.isEmpty(categories)}" class="small muted">还没有服务分类</span>
+        <a th:if="${session.sessionUser.isAdmin()}" href="#categoryAdmin" class="cat-chip">修改美容洗护分类</a>
+      </div>
+
+      <div class="card" id="categoryAdmin" th:if="${session.sessionUser.isAdmin()}">
+        <div class="card-head"><span>修改美容洗护分类</span></div>
+        <div class="card-body flush">
+          <table class="tbl">
+            <thead><tr><th>排序</th><th>名称</th><th>服务大类</th><th>状态</th><th style="width:420px">操作</th></tr></thead>
+            <tbody>
+              <tr th:each="c : ${categories}">
+                <td class="num" th:text="${c.sortNo}"></td>
+                <td><b th:text="${c.name}"></b></td>
+                <td th:text="${ui.degree(c.degree)}"></td>
+                <td><span class="badge" th:classappend="${c.isVisible} ? 'ok' : 'warn'" th:text="${c.isVisible} ? '显示' : '隐藏'"></span></td>
+                <td class="actions">
+                  <form method="post" th:action="@{/services/categories/{id}/move(id=${c.id})}" style="display:inline">
+                    <input type="hidden" name="dir" value="up"><button class="btn ghost sm" title="上移">↑</button>
+                  </form>
+                  <form method="post" th:action="@{/services/categories/{id}/move(id=${c.id})}" style="display:inline">
+                    <input type="hidden" name="dir" value="down"><button class="btn ghost sm" title="下移">↓</button>
+                  </form>
+                  <form method="post" th:action="@{/services/categories/{id}/visibility(id=${c.id})}" style="display:inline">
+                    <input type="hidden" name="visible" th:value="${c.isVisible} ? 'false' : 'true'">
+                    <button class="btn ghost sm" th:text="${c.isVisible} ? '隐藏' : '显示'"></button>
+                  </form>
+                  <form method="post" th:action="@{/services/categories/{id}/delete(id=${c.id})}" style="display:inline"
+                        onsubmit="return confirmAct('删除该服务分类？已被价格格子或美容单项引用时不能删除。')">
+                    <button class="btn danger sm">删除</button>
+                  </form>
+                  <button class="btn ghost sm" type="button"
+                          th:attr="onclick='document.getElementById(\'cat-edit-' + ${c.id} + '\').showModal()'">编辑</button>
+                  <dialog class="modal" th:id="'cat-edit-' + ${c.id}">
+                    <form method="post" th:action="@{/services/categories/save}">
+                      <div class="card-head"><span>编辑服务分类</span></div>
+                      <div class="card-body">
+                        <input type="hidden" name="id" th:value="${c.id}">
+                        <div class="form-grid">
+                          <div class="field"><label>名称 *</label><input name="name" required th:value="${c.name}"></div>
+                          <div class="field"><label>服务大类 *</label>
+                            <select name="degree">
+                              <option value="SHOWER" th:selected="${c.degree == 'SHOWER'}">洗护类</option>
+                              <option value="BEAUTY" th:selected="${c.degree == 'BEAUTY'}">美容类</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="mt16">
+                          <button class="btn" type="submit">保存</button>
+                          <button class="btn ghost" type="button"
+                                  th:attr="onclick='document.getElementById(\'cat-edit-' + ${c.id} + '\').close()'">取消</button>
+                        </div>
+                      </div>
+                    </form>
+                  </dialog>
+                </td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(categories)}"><td colspan="5" class="muted">还没有服务分类</td></tr>
+            </tbody>
+          </table>
+          <div class="card-body">
+            <form method="post" th:action="@{/services/categories/save}" class="inline-form">
+              <div class="form-grid">
+                <div class="field"><label>新增分类名称 *</label><input name="name" required placeholder="精洗 / 剪毛造型 / 药浴"></div>
+                <div class="field"><label>服务大类 *</label>
+                  <select name="degree">
+                    <option value="SHOWER">洗护类</option>
+                    <option value="BEAUTY">美容类</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mt16"><button class="btn" type="submit">新增分类</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <div class="grid-form-list">
         <div class="card" th:if="${session.sessionUser.isAdmin()}">
           <div class="card-head"><span>＋ 新增服务项目</span></div>
