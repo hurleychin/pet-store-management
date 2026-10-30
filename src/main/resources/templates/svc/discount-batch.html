@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/head :: head('批量设置折扣')"></head>
+<body>
+<div class="layout">
+  <aside th:replace="fragments/sidebar :: sidebar"></aside>
+  <div class="main">
+    <header th:replace="fragments/header :: header"></header>
+    <div class="content">
+      <div th:replace="fragments/header :: flash"></div>
+      <h1 class="page-title">批量设置折扣
+        <a class="btn ghost sm" th:href="@{/services}" style="margin-left:auto">返回洗护美容价目</a>
+      </h1>
+
+      <!-- 按服务分类分页签：每个页签只列出该分类下的美容单项 -->
+      <div class="tabs" id="batchCategoryTabs">
+        <a th:each="c : ${categories}"
+           th:href="@{/services/discount-batch(categoryId=${c.id})}"
+           th:classappend="${c.id == currentCategoryId} ? 'active'">
+          <span th:text="${c.name}">剪毛</span>
+        </a>
+        <span th:if="${#lists.isEmpty(categories)}" class="small muted">还没有服务分类</span>
+      </div>
+
+      <!-- 下发表单仅管理员可见；店员只读查看 -->
+      <form th:if="${session.sessionUser.isAdmin()}" method="post"
+            th:action="@{/services/beauty-items/batch-discount}" id="batchDiscountForm"
+            onsubmit="return batchPrepare(this)">
+        <input type="hidden" name="categoryId" th:value="${currentCategoryId}">
+        <input type="hidden" name="discountType" id="batchDiscountType" value="GROUP">
+        <input type="hidden" name="discountRate" id="batchDiscountRate" value="">
+        <div class="card">
+          <div class="card-head"><span>美容单项</span></div>
+          <div class="card-body flush">
+            <table class="tbl">
+              <thead>
+              <tr>
+                <th class="center" th:if="${session.sessionUser.isAdmin()}">
+                  <input type="checkbox" title="全选" onclick="batchToggleAll(this)">
+                </th>
+                <th>名称</th><th class="num">零售价</th><th>服务折扣</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr th:each="i : ${batchItems}">
+                <td class="center" th:if="${session.sessionUser.isAdmin()}">
+                  <input type="checkbox" name="ids" th:value="${i.id}">
+                </td>
+                <td><b th:text="${i.name}"></b></td>
+                <td class="num" th:text="${ui.yuan(i.retailPriceCent)}"></td>
+                <td th:text="${ui.discount(i.discountType)} + (${i.discountType == 'RATE'} ? '（' + ${ui.yuan(i.discountRate)} + ' 折）' : '')"></td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(batchItems)}">
+                <td colspan="4" class="muted">该分类下还没有美容单项</td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card-body" th:if="${session.sessionUser.isAdmin() and !#lists.isEmpty(batchItems)}">
+            <div class="flex">
+              <span class="small muted">批量修改折扣</span>
+              <select name="discountPreset" id="batchPreset" onchange="batchPresetChanged(this)">
+                <option value="GROUP">会员组折扣</option>
+                <option value="FULL">全额</option>
+                <option value="RATE:9">9 折</option>
+                <option value="RATE:8">8 折</option>
+                <option value="RATE:7">7 折</option>
+                <option value="CUSTOM">自定义折</option>
+              </select>
+              <span class="flex" id="batchCustom" style="display:none">
+                <input type="number" name="customRate" step="0.1" min="0.1" max="10" placeholder="8.5" style="width:80px">
+                <span class="small muted">折</span>
+              </span>
+              <button class="btn" type="submit">确定</button>
+            </div>
+          </div>
+        </div>
+      </form>
+      <div th:unless="${session.sessionUser.isAdmin()}" class="card">
+        <div class="card-head"><span>美容单项</span></div>
+        <div class="card-body flush">
+          <table class="tbl">
+            <thead><tr><th>名称</th><th class="num">零售价</th><th>服务折扣</th></tr></thead>
+            <tbody>
+            <tr th:each="i : ${batchItems}">
+              <td><b th:text="${i.name}"></b></td>
+              <td class="num" th:text="${ui.yuan(i.retailPriceCent)}"></td>
+              <td th:text="${ui.discount(i.discountType)} + (${i.discountType == 'RATE'} ? '（' + ${ui.yuan(i.discountRate)} + ' 折）' : '')"></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(batchItems)}"><td colspan="3" class="muted">该分类下还没有美容单项</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script th:if="${session.sessionUser.isAdmin()}">
+  // 全选 / 取消全选当前页签下的美容单项
+  function batchToggleAll(box) {
+    var list = document.querySelectorAll('#batchDiscountForm input[name="ids"]');
+    for (var i = 0; i < list.length; i++) {
+      list[i].checked = box.checked;
+    }
+  }
+
+  // 只有「自定义折」才显示折扣率输入框
+  function batchPresetChanged(sel) {
+    document.getElementById('batchCustom').style.display = sel.value === 'CUSTOM' ? '' : 'none';
+  }
+
+  // 提交时把下拉选项换算成服务端参数：未勾选时照常提交，由服务端提示「请先勾选项目」
+  function batchPrepare(form) {
+    var preset = document.getElementById('batchPreset').value;
+    if (preset === 'CUSTOM') {
+      document.getElementById('batchDiscountType').value = 'RATE';
+      document.getElementById('batchDiscountRate').value = form.elements.customRate.value.trim();
+    } else {
+      var parts = preset.split(':');
+      document.getElementById('batchDiscountType').value = parts[0];
+      document.getElementById('batchDiscountRate').value = parts.length > 1 ? parts[1] : '';
+    }
+    return true;
+  }
+</script>
+</body>
+</html>

@@ -8,7 +8,9 @@
     <header th:replace="fragments/header :: header"></header>
     <div class="content">
       <div th:replace="fragments/header :: flash"></div>
-      <h1 class="page-title">洗护美容价目 <span class="sub">服务分类 · 美容单项</span></h1>
+      <h1 class="page-title">洗护美容价目 <span class="sub">服务分类 · 美容单项</span>
+        <a class="btn sm" th:href="@{/services/discount-batch}" style="margin-left:auto"
+           th:if="${session.sessionUser.isAdmin()}">批量设置折扣</a></h1>
 
       <!-- 服务分类快捷条：按排序号列出全部分类（含隐藏），管理员可进入「修改美容洗护分类」 -->
       <div class="tabs" id="categoryBar">
