@@ -8,13 +8,15 @@
           (SELECT IFNULL(SUM(received_cent),0) FROM bill
             WHERE bill_type='CARD' AND status='SETTLED'
               AND business_date = #{date})                      AS cardIncome,
-          (SELECT IFNULL(SUM(i.amount_cent),0) FROM bill_item i
+          <!-- 商品列按行折后金额计：amount_cent 减本行分摊的整单优惠和服务折扣 -->
+          (SELECT IFNULL(SUM(i.amount_cent - i.discount_cent - i.line_discount_cent),0) FROM bill_item i
             JOIN bill b ON b.id=i.bill_id
             WHERE b.bill_type='SALE' AND b.status='SETTLED'
               AND b.business_date = #{date}
               AND i.item_type='PRODUCT' AND i.paid_by_card=0)   AS productIncome,
           <!-- 服务列含寄养明细（BOARDING），否则寄养收入在日汇总里会凭空消失 -->
-          (SELECT IFNULL(SUM(i.amount_cent),0) FROM bill_item i
+          <!-- 服务列按行折后金额计（amount_cent 已是服务折扣后的行金额），再扣整单分摊；卡抵扣行不计 -->
+          (SELECT IFNULL(SUM(i.amount_cent - i.discount_cent),0) FROM bill_item i
             JOIN bill b ON b.id=i.bill_id
             WHERE b.bill_type='SALE' AND b.status='SETTLED'
               AND b.business_date = #{date}
@@ -33,7 +35,7 @@
           (SELECT COUNT(*) FROM bill
             WHERE bill_type='SALE' AND status='SETTLED'
               AND business_date = #{today})                     AS billCount,
-          (SELECT IFNULL(SUM(i.amount_cent),0) FROM bill_item i
+          (SELECT IFNULL(SUM(i.amount_cent - i.discount_cent - i.line_discount_cent),0) FROM bill_item i
             JOIN bill b ON b.id=i.bill_id
             WHERE b.bill_type='SALE' AND b.status='SETTLED'
               AND b.business_date = #{today} AND i.paid_by_card=0) AS todayIncome,

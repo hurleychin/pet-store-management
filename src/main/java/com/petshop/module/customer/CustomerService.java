@@ -19,11 +19,14 @@ public class CustomerService {
     private final CustomerMapper customerMapper;
     private final PetMapper petMapper;
     private final PetEventMapper petEventMapper;
+    private final MemberGroupService memberGroupService;
 
-    public CustomerService(CustomerMapper customerMapper, PetMapper petMapper, PetEventMapper petEventMapper) {
+    public CustomerService(CustomerMapper customerMapper, PetMapper petMapper, PetEventMapper petEventMapper,
+                           MemberGroupService memberGroupService) {
         this.customerMapper = customerMapper;
         this.petMapper = petMapper;
         this.petEventMapper = petEventMapper;
+        this.memberGroupService = memberGroupService;
     }
 
     public PageResult<Customer> search(String keyword, boolean includeInactive, int page, int size) {
@@ -58,7 +61,8 @@ public class CustomerService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public Long createCustomer(String name, String phone, String source, String remark) {
+    public Long createCustomer(String name, String phone, String source, String remark, Long memberGroupId) {
+        memberGroupService.requireIfPresent(memberGroupId);
         name = trim(name, "客户姓名不能为空");
         phone = trim(phone, "手机号不能为空");
         if (customerMapper.findByPhone(phone) != null) {
@@ -70,6 +74,7 @@ public class CustomerService {
         c.setSource(source);
         c.setRemark(remark);
         c.setCreatedAt(LocalDateTime.now());
+        c.setMemberGroupId(memberGroupId);
         try {
             customerMapper.insert(c);
         } catch (org.springframework.dao.DuplicateKeyException e) {
@@ -80,7 +85,8 @@ public class CustomerService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void updateCustomer(Long id, String name, String phone, String source, String remark) {
+    public void updateCustomer(Long id, String name, String phone, String source, String remark, Long memberGroupId) {
+        memberGroupService.requireIfPresent(memberGroupId);
         name = trim(name, "客户姓名不能为空");
         phone = trim(phone, "手机号不能为空");
         Customer exists = customerMapper.findByPhone(phone);
@@ -92,6 +98,7 @@ public class CustomerService {
         c.setPhone(phone);
         c.setSource(source);
         c.setRemark(remark);
+        c.setMemberGroupId(memberGroupId);
         try {
             customerMapper.update(c);
         } catch (org.springframework.dao.DuplicateKeyException e) {

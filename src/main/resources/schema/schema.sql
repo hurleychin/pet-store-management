@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS customer (
   source     TEXT,                              -- 客户来源渠道（自然到店/朋友介绍/美团/抖音…），自由文本，仅用于统计拉新效果
   remark     TEXT,                              -- 备注：住址、接送习惯、砍价记录、投诉历史等
   is_active  INTEGER NOT NULL DEFAULT 1,        -- 是否有效：1=正常 0=已停用。逻辑删除，名下可能有单据，不可物理删除
-  created_at TEXT    NOT NULL                   -- 建档时间 'yyyy-MM-dd HH:mm:ss'
+  created_at TEXT    NOT NULL,                  -- 建档时间 'yyyy-MM-dd HH:mm:ss'
+  member_group_id INTEGER                       -- v1.3 会员组 member_group.id；空 = 散客组（服务折扣「会员组折扣」按其折扣率计价）
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_customer_phone ON customer(phone); -- 手机号唯一：同一部手机不允许建两个客户，否则次卡余额会分裂
 
@@ -250,17 +251,18 @@ CREATE TABLE IF NOT EXISTS bill_item (
   id              INTEGER PRIMARY KEY AUTOINCREMENT, -- 主键，自增
   bill_id         INTEGER NOT NULL REFERENCES bill(id), -- 所属单据
   item_type       TEXT    NOT NULL,                  -- 明细类型：SERVICE 服务 / PRODUCT 商品
-  ref_id          INTEGER NOT NULL,                  -- 指向 service_item.id 或 product.id，按 item_type 解释（★不设外键：两个目标表共用一个字段）
+  ref_id          INTEGER NOT NULL,                  -- 按 item_type 解释：SERVICE 服务行为价目行 service_price_row.id 或美容单项 service_beauty_item.id；PRODUCT 为 product.id；BOARDING 为寄养单（★不设外键：多表共用一个字段）
   name_snapshot   TEXT    NOT NULL,                  -- 名称快照，必填；改名后历史单据不能跟着变，否则客户会说「我当时买的不是这个」
   size_tier       TEXT,                              -- 服务体型档：S / M / L / XL，决定用哪一档价；商品行为空
   pet_id          INTEGER,                           -- 本行服务的宠物；一单多宠必须按行记录，否则不知道钱花在谁身上
   qty             INTEGER NOT NULL DEFAULT 1,        -- 数量（服务次数 / 商品件数）
-  unit_price_cent INTEGER NOT NULL DEFAULT 0,        -- 成交单价，单位分；已含体型档价与手工改价，不是挂牌价
-  amount_cent     INTEGER NOT NULL DEFAULT 0,        -- 行金额 = unit_price_cent × qty（优惠前）
-  discount_cent   INTEGER NOT NULL DEFAULT 0,        -- 分摊到本行的优惠金额；各行之和必须等于 bill.discount_cent
+  unit_price_cent INTEGER NOT NULL DEFAULT 0,        -- 成交单价，单位分；服务行已含服务折扣（价目带出后再折），商品为售价
+  amount_cent     INTEGER NOT NULL DEFAULT 0,        -- 行金额 = unit_price_cent × qty（服务行此后仅整单折扣；商品行为优惠前金额）
+  discount_cent   INTEGER NOT NULL DEFAULT 0,        -- 分摊到本行的整单优惠；各行之和等于 bill.discount_cent（与 line_discount_cent 分开）
   paid_by_card    INTEGER NOT NULL DEFAULT 0,        -- 本行是否用次卡抵扣：1=是 0=否。★=1 时该行不计营业收入（钱在售卡当天已收过，再算一次会让当天营收虚高）
   card_id         INTEGER,                           -- 抵扣所用的 customer_card.id；paid_by_card=0 时为空
-  sort_no         INTEGER NOT NULL DEFAULT 0         -- 打印/显示顺序
+  sort_no         INTEGER NOT NULL DEFAULT 0,        -- 打印/显示顺序
+  line_discount_cent INTEGER NOT NULL DEFAULT 0      -- v1.3 本行服务折扣金额（标价 − 成交价）；与 discount_cent（整单折扣分摊）分开存储、分别展示
 );
 CREATE INDEX IF NOT EXISTS idx_item_bill ON bill_item(bill_id); -- 打开单据详情、反结账按单捞明细
 
@@ -749,3 +751,14 @@ CREATE TABLE IF NOT EXISTS service_price_cell (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_service_price_cell ON service_price_cell(row_id, category_id);
 CREATE INDEX IF NOT EXISTS idx_service_price_cell_category ON service_price_cell(category_id);
+
+-- ============================================================================
+-- 38. member_group 会员组（v1.3 洗护美容价目）
+--    服务折扣取「会员组折扣」时，用客户所属会员组的折扣率计价；客户未设会员组视为散客组。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS member_group (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT    NOT NULL,               -- 会员组名称，如「散客组」「VIP」
+  discount_rate INTEGER NOT NULL DEFAULT 10     -- 折扣率，十分位整数：10=全额（不打折），9=9折，85=8.5折
+);
+INSERT OR IGNORE INTO member_group(id, name, discount_rate) VALUES (1, '散客组', 10);

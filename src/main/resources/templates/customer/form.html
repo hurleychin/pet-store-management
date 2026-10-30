@@ -39,6 +39,16 @@
                   <option value="其他" th:selected="${customer.source == '其他'}">其他</option>
                 </select>
               </div>
+              <div class="field">
+                <label>会员组</label>
+                <select name="memberGroupId">
+                  <option value="" th:selected="${customer.memberGroupId == null}">散客组（不设会员组）</option>
+                  <option th:each="g : ${memberGroups}" th:value="${g.id}"
+                          th:selected="${customer.memberGroupId != null and customer.memberGroupId == g.id}"
+                          th:text="${g.name} + '（' + ${g.discountRate} + '折）'"></option>
+                </select>
+                <div class="hint">开单时服务折扣取「会员组折扣」的行按此组折扣率计价</div>
+              </div>
               <div class="field full">
                 <label>备注（住址、习惯、投诉历史等）</label>
                 <textarea name="remark" rows="3" th:text="${customer.remark}"></textarea>

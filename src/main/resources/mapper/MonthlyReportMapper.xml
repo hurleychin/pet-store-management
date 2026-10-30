@@ -3,7 +3,7 @@
 <mapper namespace="com.petshop.module.report.MonthlyReportMapper">
 
     <!-- 每日三列 + 单量 + 商品成本（v1.1）。
-         口径与日汇总一致：售卡=收款当日确认；商品/服务按明细金额、排除卡抵扣行；
+         口径与日汇总一致：售卡=收款当日确认；商品/服务按明细折后金额（扣服务折扣与整单分摊）、排除卡抵扣行；
          成本取销售出库流水的成本快照（v1.0 历史数据为 0，毛利自 v1.1 起统计）。 -->
     <select id="monthly" resultType="map">
         SELECT d.business_date                                                     AS businessDate,
@@ -16,12 +16,12 @@
           LEFT JOIN (SELECT business_date, SUM(received_cent) AS card_income
                        FROM bill WHERE bill_type='CARD' AND status='SETTLED'
                        GROUP BY business_date) c ON c.business_date = d.business_date
-          LEFT JOIN (SELECT b.business_date, SUM(i.amount_cent) AS product_income
+          LEFT JOIN (SELECT b.business_date, SUM(i.amount_cent - i.discount_cent - i.line_discount_cent) AS product_income
                        FROM bill_item i JOIN bill b ON b.id = i.bill_id
                        WHERE b.bill_type='SALE' AND b.status='SETTLED'
                          AND i.item_type='PRODUCT' AND i.paid_by_card=0
                        GROUP BY b.business_date) p ON p.business_date = d.business_date
-          LEFT JOIN (SELECT b.business_date, SUM(i.amount_cent) AS service_income
+          LEFT JOIN (SELECT b.business_date, SUM(i.amount_cent - i.discount_cent) AS service_income
                        FROM bill_item i JOIN bill b ON b.id = i.bill_id
                        WHERE b.bill_type='SALE' AND b.status='SETTLED'
                          AND i.item_type IN ('SERVICE','BOARDING') AND i.paid_by_card=0

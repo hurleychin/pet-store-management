@@ -23,11 +23,14 @@ public class CustomerController {
     private final CustomerService service;
     private final CustomerCardMapper cardMapper;
     private final BillMapper billMapper;
+    private final MemberGroupService memberGroupService;
 
-    public CustomerController(CustomerService service, CustomerCardMapper cardMapper, BillMapper billMapper) {
+    public CustomerController(CustomerService service, CustomerCardMapper cardMapper, BillMapper billMapper,
+                              MemberGroupService memberGroupService) {
         this.service = service;
         this.cardMapper = cardMapper;
         this.billMapper = billMapper;
+        this.memberGroupService = memberGroupService;
     }
 
     @GetMapping("/customers")
@@ -45,12 +48,14 @@ public class CustomerController {
     @GetMapping("/customers/new")
     public String form(Model model) {
         model.addAttribute("customer", new Customer());
+        model.addAttribute("memberGroups", memberGroupService.findAll());
         return "customer/form";
     }
 
     @GetMapping("/customers/{id}/edit")
     public String edit(@PathVariable Long id, Model model) {
         model.addAttribute("customer", service.findById(id));
+        model.addAttribute("memberGroups", memberGroupService.findAll());
         return "customer/form";
     }
 
@@ -59,12 +64,13 @@ public class CustomerController {
                        @RequestParam String name, @RequestParam String phone,
                        @RequestParam(required = false) String source,
                        @RequestParam(required = false) String remark,
+                       @RequestParam(required = false) Long memberGroupId,
                        RedirectAttributes ra) {
         if (id == null) {
-            id = service.createCustomer(name, phone, source, remark);
+            id = service.createCustomer(name, phone, source, remark, memberGroupId);
             ra.addFlashAttribute("okMsg", "客户建档成功");
         } else {
-            service.updateCustomer(id, name, phone, source, remark);
+            service.updateCustomer(id, name, phone, source, remark, memberGroupId);
             ra.addFlashAttribute("okMsg", "客户资料已更新");
         }
         return "redirect:/customers/" + id;

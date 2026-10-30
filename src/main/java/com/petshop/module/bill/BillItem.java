@@ -13,6 +13,8 @@ public class BillItem {
     private int unitPriceCent;
     private int amountCent;
     private int discountCent;
+    /** v1.3：本行服务折扣金额（标价 − 成交价），与 discountCent（整单折扣分摊）分开 */
+    private int lineDiscountCent;
     private boolean paidByCard;
     private Long cardId;
     private int sortNo;
@@ -48,6 +50,8 @@ public class BillItem {
     public void setAmountCent(int amountCent) { this.amountCent = amountCent; }
     public int getDiscountCent() { return discountCent; }
     public void setDiscountCent(int discountCent) { this.discountCent = discountCent; }
+    public int getLineDiscountCent() { return lineDiscountCent; }
+    public void setLineDiscountCent(int lineDiscountCent) { this.lineDiscountCent = lineDiscountCent; }
     public boolean getPaidByCard() { return paidByCard; }
     public void setPaidByCard(boolean paidByCard) { this.paidByCard = paidByCard; }
     public Long getCardId() { return cardId; }

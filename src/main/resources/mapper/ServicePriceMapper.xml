@@ -48,6 +48,12 @@
         SELECT * FROM service_price_cell
     </select>
 
+    <select id="findSellableCells" resultMap="cellMap">
+        SELECT c.* FROM service_price_cell c
+        JOIN service_category cat ON cat.id = c.category_id
+        WHERE cat.is_visible = 1 AND c.price_cent &gt; 0
+    </select>
+
     <select id="findCell" resultMap="cellMap">
         SELECT * FROM service_price_cell WHERE row_id = #{rowId} AND category_id = #{categoryId}
     </select>
