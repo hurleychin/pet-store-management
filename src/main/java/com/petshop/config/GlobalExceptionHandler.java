@@ -28,6 +28,7 @@ public class GlobalExceptionHandler {
         FAIL_BACK.put("/services/save", "/services");
         FAIL_BACK.put("/services/beauty-items/add", "/services");
         FAIL_BACK.put("/services/beauty-items/batch", "/services");
+        FAIL_BACK.put("/services/beauty-items/batch-discount", "/services/discount-batch");
     }
 
     @ExceptionHandler(BizException.class)

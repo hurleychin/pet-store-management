@@ -125,6 +125,40 @@ public class ServiceBeautyItemService {
         return item;
     }
 
+    /** 某分类下的美容单项（按排序号），用于「批量设置折扣」的分页签。 */
+    public List<ServiceBeautyItem> findByCategory(Long categoryId) {
+        List<ServiceBeautyItem> result = new ArrayList<>();
+        for (ServiceBeautyItem item : mapper.findAll()) {
+            if (item.getCategoryId() != null && item.getCategoryId().equals(categoryId)) {
+                result.add(item);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 批量设置服务折扣：只更新所选项目，未选中的保持原折扣。
+     * 整批折扣先校验，任一项目不存在则整批不落库。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public List<ServiceBeautyItem> batchSetDiscount(List<Long> ids, String discountType, String discountRate) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "请先勾选项目");
+        }
+        DiscountKind kind = DiscountKind.parse(discountType);
+        int rate = rate(kind, discountRate);
+        List<ServiceBeautyItem> items = new ArrayList<>();
+        for (Long id : new java.util.LinkedHashSet<>(ids)) {
+            items.add(requireExists(id));
+        }
+        for (ServiceBeautyItem item : items) {
+            item.setDiscountType(kind.name());
+            item.setDiscountRate(rate);
+            mapper.update(item);
+        }
+        return items;
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         requireExists(id);
