@@ -114,10 +114,17 @@ public class UiHelper {
     /** 价目格子的服务折扣：RATE 带上折扣率（十分位整数），如 90=9折 / 85=8.5折 */
     public String discount(String type, Integer rate) {
         if ("RATE".equals(type) && rate != null) {
-            java.math.BigDecimal r = java.math.BigDecimal.valueOf(rate).movePointLeft(1).stripTrailingZeros();
-            return r.toPlainString() + "折";
+            return discountRate(rate) + "折";
         }
         return discount(type);
+    }
+
+    /** 十分位整数折扣率 -> 用户可读的折数，用于输入框回填：90 -> "9"，85 -> "8.5" */
+    public String discountRate(Integer rate) {
+        if (rate == null) {
+            return "";
+        }
+        return java.math.BigDecimal.valueOf(rate).movePointLeft(1).stripTrailingZeros().toPlainString();
     }
 
     public String species(String s) {

@@ -3,6 +3,8 @@ package com.petshop.module.svc.discount;
 import com.petshop.common.BizException;
 import com.petshop.common.ErrorCode;
 
+import java.math.BigDecimal;
+
 /**
  * 服务折扣：价目格子、美容单项、整单共用的优惠方式。
  * GROUP=会员组折扣（折扣率取客户所属会员组）/ FULL=全额（10 折）/ RATE=按折扣率（9、8、7 折或自定义）。
@@ -35,5 +37,28 @@ public enum DiscountKind {
             return RATE;
         }
         throw new BizException(ErrorCode.PARAM_INVALID, "服务折扣取值不正确，请重新选择");
+    }
+
+    /**
+     * 把用户输入的「折数」（如 9、8.5）解析为十分位整数（90、85）。
+     * 合法范围 (0, 10]、最多一位小数；报错文案由各个入口传入，保持各页面原有提示。
+     */
+    public static int parseTenths(String raw, String formatMsg, String rangeMsg) {
+        String s = raw == null ? "" : raw.trim();
+        BigDecimal d;
+        try {
+            d = new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            throw new BizException(ErrorCode.PARAM_INVALID, formatMsg);
+        }
+        if (d.signum() <= 0 || d.compareTo(BigDecimal.TEN) > 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID, rangeMsg);
+        }
+        // 折数 × 10 为整数：9 -> 90、8.5 -> 85、10 -> 100；多于一位小数则拒绝
+        BigDecimal tenths = d.multiply(BigDecimal.TEN);
+        if (tenths.stripTrailingZeros().scale() > 0) {
+            throw new BizException(ErrorCode.PARAM_INVALID, rangeMsg);
+        }
+        return tenths.intValueExact();
     }
 }

@@ -2,6 +2,7 @@ package com.petshop.module.svc;
 
 import com.petshop.common.BizException;
 import com.petshop.common.ErrorCode;
+import com.petshop.module.svc.discount.DiscountKind;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -143,20 +144,11 @@ public class ServicePriceService {
         }
     }
 
-    /** 折扣率十分位整数，合法范围 (0, 10]，如 9 表示 9 折、85 表示 8.5 折。与美容单项口径一致。 */
+    /** 折扣率十分位整数，合法范围 (0, 10]，如 9 表示 9 折、85 表示 8.5 折。与美容单项共用同一解析。 */
     private int parseRate(String raw) {
-        String s = raw == null ? "" : raw.trim();
-        BigDecimal d;
-        try {
-            d = new BigDecimal(s);
-        } catch (NumberFormatException e) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "自定义折扣率不正确，如 8.5 表示 8.5 折");
-        }
-        BigDecimal tenths = d.multiply(BigDecimal.TEN).stripTrailingZeros();
-        if (d.signum() <= 0 || d.compareTo(BigDecimal.TEN) > 0 || tenths.scale() > 0) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "自定义折扣率需大于 0 且不超过 10，最多一位小数");
-        }
-        return tenths.intValueExact();
+        return DiscountKind.parseTenths(raw,
+                "自定义折扣率不正确，如 8.5 表示 8.5 折",
+                "自定义折扣率需大于 0 且不超过 10，最多一位小数");
     }
 
     private String blankToNull(String s) {

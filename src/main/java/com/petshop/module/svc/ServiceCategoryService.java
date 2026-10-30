@@ -2,7 +2,6 @@ package com.petshop.module.svc;
 
 import com.petshop.common.BizException;
 import com.petshop.common.ErrorCode;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,11 +12,9 @@ import java.util.List;
 public class ServiceCategoryService {
 
     private final ServiceCategoryMapper mapper;
-    private final JdbcTemplate jdbc;
 
-    public ServiceCategoryService(ServiceCategoryMapper mapper, JdbcTemplate jdbc) {
+    public ServiceCategoryService(ServiceCategoryMapper mapper) {
         this.mapper = mapper;
-        this.jdbc = jdbc;
     }
 
     public List<ServiceCategory> findAll() {
@@ -102,13 +99,8 @@ public class ServiceCategoryService {
         mapper.delete(id);
     }
 
-    /** 价格格子 / 美容单项由后续工单建表；表还不存在时视为无引用。 */
     private int countReferences(Long id) {
-        java.util.Set<String> tables = new java.util.HashSet<>(jdbc.queryForList(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('service_price_cell', 'service_beauty_item')",
-                String.class));
-        return mapper.countReferences(id, tables.contains("service_price_cell"),
-                tables.contains("service_beauty_item"));
+        return mapper.countReferences(id);
     }
 
     private ServiceCategory requireExists(Long id) {

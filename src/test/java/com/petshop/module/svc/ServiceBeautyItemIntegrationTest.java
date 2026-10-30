@@ -229,6 +229,49 @@ class ServiceBeautyItemIntegrationTest {
     }
 
     @Test
+    void discountRateIsShownAsZheAndBackfilledAsZhe() throws Exception {
+        MockHttpSession admin = admin();
+        for (String[] c : new String[][]{{"九折", "9"}, {"自定义", "8.5"}}) {
+            mockMvc.perform(post("/services/beauty-items/add").session(admin)
+                            .param("name", PREFIX + c[0])
+                            .param("categoryId", String.valueOf(beautyCat))
+                            .param("retailPriceYuan", "100")
+                            .param("discountType", "RATE")
+                            .param("discountRate", c[1]))
+                    .andExpect(redirectedUrl("/services"));
+        }
+
+        String body = page(admin);
+
+        // 清单显示：按折扣率（9折 / 8.5折），不再把十分位整数当元显示成 0.90
+        assertTrue(body.contains(">9折<"), "9 折应显示为「9折」");
+        assertTrue(body.contains(">8.5折<"), "85 应显示为「8.5折」");
+        assertFalse(body.contains("0.90 折"), "折扣率不应按「元」格式化");
+        assertFalse(body.contains("0.85 折"), "折扣率不应按「元」格式化");
+
+        // 编辑表单回填：用户可读的折数 9 / 8.5
+        assertTrue(body.contains("<input type=\"number\" name=\"discountRate\"") && body.contains("value=\"9\""),
+                "输入框应回填折数 9");
+        assertTrue(body.contains("value=\"8.5\""), "输入框应回填折数 8.5");
+        assertFalse(body.contains("value=\"0.90\"") || body.contains("value=\"0.85\""), "不应回填元格式的折扣率");
+    }
+
+    @Test
+    void discountBatchPageShowsRateAsZhe() throws Exception {
+        jdbc.update("INSERT INTO service_beauty_item(name, category_id, retail_price_cent, discount_type, "
+                + "discount_rate, show_cashier, show_shop, earn_points, sort_no, is_active) "
+                + "VALUES(?, ?, 10000, 'RATE', 85, 1, 1, 0, 0, 1)", PREFIX + "批量八五折", beautyCat);
+
+        String body = mockMvc.perform(get("/services/discount-batch").session(admin())
+                        .param("categoryId", String.valueOf(beautyCat)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(body.contains("<td>8.5折</td>"), "批量折扣页应把 85 显示为「8.5折」");
+        assertFalse(body.contains("0.85 折"), "折扣率不应按「元」格式化");
+    }
+
+    @Test
     void invalidDiscountIsRejectedAndNothingIsSaved() throws Exception {
         MockHttpSession admin = admin();
         mockMvc.perform(post("/services/beauty-items/add").session(admin)

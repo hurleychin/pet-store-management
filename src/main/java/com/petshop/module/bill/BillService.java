@@ -374,7 +374,7 @@ public class BillService {
      * 服务行逐条重算（不信任前端金额）：价目格子或美容单项带出标价，按服务折扣算成交价，允许手改价。
      * - PRICE：价目行 + 分类 → 格子；分类隐藏或格子未定价不可开单。
      * - BEAUTY：美容单项，零售价；停用或所属分类隐藏不可开单。
-     * - 手改价（unitPriceCent）即成交标价，只允许低于或等于带出价，改后不再叠加服务折扣。
+     * - 手改价（unitPriceCent）即成交价，只允许低于或等于带出成交价（标价按折扣算出），改后不再叠加服务折扣。
      * - 折扣：GROUP 取客户会员组率、FULL 10 折、RATE 取各自折扣率；成交价 = round(标价 × 率 / 10)，行折扣 = 标价 − 成交价。
      */
     private ServiceLine resolveServiceLine(BillForm.Item f, int memberRate) {
@@ -457,9 +457,10 @@ public class BillService {
             if (manual < 0) {
                 throw new BizException(ErrorCode.PARAM_INVALID, "手工改价不能为负数");
             }
-            if (manual > listPrice) {
-                throw new BizException(ErrorCode.PARAM_INVALID, "手工改价不能高于价目价格 "
-                        + Money.yuan(listPrice) + " 元，调价请改价目表");
+            // 上限是带出成交价（按折扣算出），不是标价：不许绕过服务折扣提价
+            if (manual > deal) {
+                throw new BizException(ErrorCode.PARAM_INVALID, "手工改价不能高于带出价格 "
+                        + Money.yuan(deal) + " 元，调价请改价目表");
             }
             deal = manual;
         }

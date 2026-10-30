@@ -22,11 +22,6 @@ public interface ServiceCategoryMapper {
 
     int delete(@Param("id") Long id);
 
-    /**
-     * 引用计数：已有价格格子或美容单项引用该分类。
-     * cellExists / beautyItemExists 为 false 时对应子查询不执行（这两张表由后续工单建出）。
-     */
-    int countReferences(@Param("id") Long id,
-                        @Param("cellExists") boolean cellExists,
-                        @Param("beautyItemExists") boolean beautyItemExists);
+    /** 引用计数：已有价格格子或美容单项引用该分类。 */
+    int countReferences(@Param("id") Long id);
 }

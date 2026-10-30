@@ -209,6 +209,26 @@ class ServiceRetireIntegrationTest {
         assertTrue(billPage.contains("apptPetId\" value=\"" + pet + "\""), "转开单页应预填预约宠物");
     }
 
+    @Test
+    void appointmentWithBeautyItemInHiddenCategoryIsRejected() throws Exception {
+        jdbc.update("UPDATE service_category SET is_visible = 0 WHERE id = ?", cat);
+
+        org.springframework.test.web.servlet.MvcResult r = mockMvc.perform(post("/appointments/save").session(admin)
+                        .param("customerId", String.valueOf(customer))
+                        .param("petId", String.valueOf(pet))
+                        .param("serviceId", String.valueOf(beauty))
+                        .param("appointDate", java.time.LocalDate.now().toString())
+                        .param("slot", "10:00"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        assertEquals(0L, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM appointment WHERE customer_id = ?", Long.class, customer),
+                "隐藏分类下的美容单项不得预约");
+        Object err = r.getFlashMap().get("errMsg");
+        assertTrue(err != null && err.toString().contains("隐藏"), "应提示分类已隐藏，实际：" + err);
+    }
+
     // ------------------------------------------------------------ 次卡类型适用美容单项 + 卡适用性校验
 
     @Test
