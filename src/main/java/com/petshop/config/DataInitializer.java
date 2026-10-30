@@ -106,6 +106,7 @@ public class DataInitializer implements ApplicationRunner {
      */
     private void migrateV13() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS schema_version(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+        createBeautyItemIfMissing();
         Integer done = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Integer.class);
         if (done == null || done == 0) {
@@ -114,6 +115,24 @@ public class DataInitializer implements ApplicationRunner {
                             java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             log.info("v1.3 迁移完成：洗护美容价目表结构就绪");
         }
+    }
+
+    /** v1.3 美容单项表：schema.sql 已建则不动；旧库若缺列则补齐（幂等）。 */
+    private void createBeautyItemIfMissing() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS service_beauty_item ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "name TEXT NOT NULL,"
+                + "category_id INTEGER NOT NULL,"
+                + "retail_price_cent INTEGER NOT NULL DEFAULT 0,"
+                + "discount_type TEXT NOT NULL DEFAULT 'GROUP',"
+                + "discount_rate INTEGER NOT NULL DEFAULT 10,"
+                + "show_cashier INTEGER NOT NULL DEFAULT 1,"
+                + "show_shop INTEGER NOT NULL DEFAULT 1,"
+                + "earn_points INTEGER NOT NULL DEFAULT 0,"
+                + "sort_no INTEGER NOT NULL DEFAULT 0,"
+                + "is_active INTEGER NOT NULL DEFAULT 1)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_beauty_item_cat "
+                + "ON service_beauty_item(category_id, sort_no, id)");
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {

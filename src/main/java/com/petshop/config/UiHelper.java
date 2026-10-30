@@ -100,6 +100,17 @@ public class UiHelper {
         }
     }
 
+    /** 服务折扣：GROUP=会员组折扣 / FULL=全额 / RATE=按折扣率 */
+    public String discount(String type) {
+        if (type == null) return "—";
+        switch (type) {
+            case "GROUP": return "会员组折扣";
+            case "FULL": return "全额";
+            case "RATE": return "按折扣率";
+            default: return type;
+        }
+    }
+
     public String species(String s) {
         if (s == null) return "—";
         switch (s) {

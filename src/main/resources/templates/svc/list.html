@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="fragments/head :: head('服务项目')"></head>
+<head th:replace="fragments/head :: head('洗护美容价目')"></head>
 <body>
 <div class="layout">
   <aside th:replace="fragments/sidebar :: sidebar"></aside>
@@ -8,7 +8,7 @@
     <header th:replace="fragments/header :: header"></header>
     <div class="content">
       <div th:replace="fragments/header :: flash"></div>
-      <h1 class="page-title">服务项目 <span class="sub">体型四档价：小 / 中 / 大 / 巨型</span></h1>
+      <h1 class="page-title">洗护美容价目 <span class="sub">服务分类 · 美容单项</span></h1>
 
       <!-- 服务分类快捷条：按排序号列出全部分类（含隐藏），管理员可进入「修改美容洗护分类」 -->
       <div class="tabs" id="categoryBar">
@@ -92,6 +92,9 @@
           </div>
         </div>
       </div>
+
+      <!-- 美容单项（独立片段，便于与其他价目区块并行合并） -->
+      <div th:replace="svc/_beauty-items :: beautyItems"></div>
 
       <div class="grid-form-list">
         <div class="card" th:if="${session.sessionUser.isAdmin()}">
