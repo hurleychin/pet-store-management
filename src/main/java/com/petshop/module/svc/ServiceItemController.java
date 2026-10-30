@@ -18,16 +18,23 @@ public class ServiceItemController {
 
     private final ServiceItemMapper mapper;
     private final ServiceCategoryService categoryService;
+    private final ServiceBeautyItemService beautyItemService;
 
-    public ServiceItemController(ServiceItemMapper mapper, ServiceCategoryService categoryService) {
+    public ServiceItemController(ServiceItemMapper mapper, ServiceCategoryService categoryService,
+                                 ServiceBeautyItemService beautyItemService) {
         this.mapper = mapper;
         this.categoryService = categoryService;
+        this.beautyItemService = beautyItemService;
     }
 
     @GetMapping
     public String list(Model model) {
         model.addAttribute("items", mapper.findAll());
         model.addAttribute("categories", categoryService.findAll());
+        // 美容单项：分类下拉只列可见分类
+        model.addAttribute("visibleCategories", categoryService.findAll().stream()
+                .filter(ServiceCategory::getIsVisible).collect(java.util.stream.Collectors.toList()));
+        model.addAttribute("beautyItems", beautyItemService.findAll());
         return "svc/list";
     }
 

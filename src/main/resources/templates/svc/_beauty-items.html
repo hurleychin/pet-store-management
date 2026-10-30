@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- 美容单项区块：名称 + 分类 + 零售价 + 服务折扣 + 银/微/积三个开关；管理员可新增、批量新增、编辑、删除 -->
+<div th:fragment="beautyItems" id="beautyItems" class="card">
+  <div class="card-head"><span>美容单项</span></div>
+  <div class="card-body flush">
+    <table class="tbl">
+      <thead>
+      <tr>
+        <th>名称</th><th>分类</th><th class="num">零售价</th><th>服务折扣</th>
+        <th class="center">银</th><th class="center">微</th><th class="center">积</th>
+        <th th:if="${session.sessionUser.isAdmin()}" style="width:200px">操作</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="i : ${beautyItems}">
+        <td><b th:text="${i.name}"></b></td>
+        <td th:text="${i.categoryName} ?: '—'"></td>
+        <td class="num" th:text="${ui.yuan(i.retailPriceCent)}"></td>
+        <td th:text="${ui.discount(i.discountType)} + (${i.discountType == 'RATE'} ? '（' + ${ui.yuan(i.discountRate)} + ' 折）' : '')"></td>
+        <td class="center"><span class="badge switch" th:classappend="${i.showCashier} ? 'ok' : 'muted'" th:attr="data-on=${i.showCashier}" th:text="${i.showCashier} ? '开' : '关'"></span></td>
+        <td class="center"><span class="badge switch" th:classappend="${i.showShop} ? 'ok' : 'muted'" th:attr="data-on=${i.showShop}" th:text="${i.showShop} ? '开' : '关'"></span></td>
+        <td class="center"><span class="badge switch" th:classappend="${i.earnPoints} ? 'ok' : 'muted'" th:attr="data-on=${i.earnPoints}" th:text="${i.earnPoints} ? '开' : '关'"></span></td>
+        <td th:if="${session.sessionUser.isAdmin()}" class="actions">
+          <button class="btn ghost sm" type="button"
+                  th:attr="onclick='document.getElementById(\'bi-edit-' + ${i.id} + '\').showModal()'">编辑</button>
+          <form method="post" th:action="@{/services/beauty-items/{id}/delete(id=${i.id})}" style="display:inline"
+                onsubmit="return confirmAct('删除该美容单项？')">
+            <button class="btn danger sm">删除</button>
+          </form>
+          <dialog class="modal" th:id="'bi-edit-' + ${i.id}">
+            <form method="post" th:action="@{/services/beauty-items/{id}/save(id=${i.id})}">
+              <div class="card-head"><span>编辑美容单项</span></div>
+              <div class="card-body">
+                <div class="form-grid">
+                  <div class="field"><label>名称 *</label><input name="name" required th:value="${i.name}"></div>
+                  <div class="field"><label>分类 *</label>
+                    <select name="categoryId" required>
+                      <option th:each="c : ${visibleCategories}" th:value="${c.id}" th:text="${c.name}"
+                              th:selected="${c.id == i.categoryId}"></option>
+                    </select>
+                  </div>
+                  <div class="field"><label>零售价（元）*</label><input name="retailPriceYuan" required
+                          th:value="${ui.yuan(i.retailPriceCent)}"></div>
+                  <div class="field"><label>服务折扣 *</label>
+                    <div class="flex">
+                      <select name="discountType" onchange="biRateToggle(this)">
+                        <option value="GROUP" th:selected="${i.discountType == 'GROUP'}">会员组折扣</option>
+                        <option value="FULL" th:selected="${i.discountType == 'FULL'}">全额</option>
+                        <option value="RATE" th:selected="${i.discountType == 'RATE'}">按折扣率</option>
+                      </select>
+                      <input type="number" name="discountRate" step="0.1" min="0.1" max="10" class="bi-rate"
+                             th:value="${i.discountType == 'RATE'} ? ${ui.yuan(i.discountRate)} : ''"
+                             th:style="${i.discountType == 'RATE'} ? '' : 'display:none'">
+                      <span class="small muted bi-rate" th:style="${i.discountType == 'RATE'} ? '' : 'display:none'">折</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt16">
+                  <button class="btn" type="submit">保存</button>
+                  <button class="btn ghost" type="button"
+                          th:attr="onclick='document.getElementById(\'bi-edit-' + ${i.id} + '\').close()'">取消</button>
+                </div>
+              </div>
+            </form>
+            <form method="post" th:action="@{/services/beauty-items/{id}/switches(id=${i.id})}">
+              <div class="card-body">
+                <div class="flex">
+                  <label class="check"><input type="checkbox" name="showCashier" value="true" th:checked="${i.showCashier}"> 银（收银台显示）</label>
+                  <label class="check"><input type="checkbox" name="showShop" value="true" th:checked="${i.showShop}"> 微（网店显示）</label>
+                  <label class="check"><input type="checkbox" name="earnPoints" value="true" th:checked="${i.earnPoints}"> 积（参与积分）</label>
+                </div>
+                <div class="mt8"><button class="btn ghost sm" type="submit">保存服务开关</button>
+                  <button class="btn ghost sm" type="button"
+                          th:attr="onclick='document.getElementById(\'bi-edit-' + ${i.id} + '\').close()'">取消</button>
+                </div>
+              </div>
+            </form>
+          </dialog>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(beautyItems)}">
+        <td colspan="8" class="muted">还没有美容单项</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-body" th:if="${session.sessionUser.isAdmin()}">
+    <div class="flex">
+      <button class="btn" type="button" onclick="document.getElementById('bi-add').showModal()">新增美容单项</button>
+      <button class="btn ghost" type="button" onclick="document.getElementById('bi-batch').showModal()">批量新增美容单项</button>
+    </div>
+    <p class="small muted mt8" th:if="${#lists.isEmpty(visibleCategories)}">请先在「修改美容洗护分类」中新增并显示服务分类，才能录入美容单项。</p>
+
+    <dialog class="modal" id="bi-add">
+      <form method="post" th:action="@{/services/beauty-items/add}">
+        <div class="card-head"><span>新增美容单项</span></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="field"><label>名称 *</label><input name="name" required placeholder="剪指甲 / 修脚底毛"></div>
+            <div class="field"><label>分类 *</label>
+              <select name="categoryId" required>
+                <option value="">请选择分类</option>
+                <option th:each="c : ${visibleCategories}" th:value="${c.id}" th:text="${c.name}"></option>
+              </select>
+            </div>
+            <div class="field"><label>零售价（元）*</label><input name="retailPriceYuan" required placeholder="28.00"></div>
+            <div class="field"><label>服务折扣 *</label>
+              <div class="flex">
+                <select name="discountType" onchange="biRateToggle(this)">
+                  <option value="GROUP">会员组折扣</option>
+                  <option value="FULL">全额</option>
+                  <option value="RATE">按折扣率</option>
+                </select>
+                <input type="number" name="discountRate" step="0.1" min="0.1" max="10" class="bi-rate" style="display:none">
+                <span class="small muted bi-rate" style="display:none">折</span>
+              </div>
+            </div>
+          </div>
+          <div class="mt16">
+            <button class="btn" type="submit">保存</button>
+            <button class="btn ghost" type="button" onclick="document.getElementById('bi-add').close()">取消</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="bi-batch">
+      <form method="post" th:action="@{/services/beauty-items/batch}">
+        <div class="card-head"><span>批量新增美容单项</span></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="field"><label>分类 *</label>
+              <select name="categoryId" required>
+                <option value="">请选择分类</option>
+                <option th:each="c : ${visibleCategories}" th:value="${c.id}" th:text="${c.name}"></option>
+              </select>
+            </div>
+            <div class="field"><label>服务折扣 *</label>
+              <div class="flex">
+                <select name="discountType" onchange="biRateToggle(this)">
+                  <option value="GROUP">会员组折扣</option>
+                  <option value="FULL">全额</option>
+                  <option value="RATE">按折扣率</option>
+                </select>
+                <input type="number" name="discountRate" step="0.1" min="0.1" max="10" class="bi-rate" style="display:none">
+                <span class="small muted bi-rate" style="display:none">折</span>
+              </div>
+            </div>
+            <div class="field full"><label>项目清单 *</label>
+              <textarea name="lines" rows="6" required placeholder="每行一个：名称,零售价&#10;剪指甲,28&#10;修脚底毛,30"></textarea>
+              <span class="hint">每行一条，格式「名称,零售价」，单价单位：元；空行忽略。</span>
+            </div>
+          </div>
+          <div class="mt16">
+            <button class="btn" type="submit">批量保存</button>
+            <button class="btn ghost" type="button" onclick="document.getElementById('bi-batch').close()">取消</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+  </div>
+</div>
+<script>
+  // 只有「按折扣率」才显示折扣率输入框
+  function biRateToggle(sel) {
+    var show = sel.value === 'RATE';
+    var box = sel.parentNode;
+    for (var i = 0; i < box.children.length; i++) {
+      var el = box.children[i];
+      if (el !== sel && el.className && (' ' + el.className + ' ').indexOf(' bi-rate ') >= 0) {
+        el.style.display = show ? '' : 'none';
+      }
+    }
+  }
+</script>
+</body>
+</html>
