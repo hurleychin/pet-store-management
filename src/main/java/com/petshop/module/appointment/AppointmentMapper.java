@@ -15,7 +15,14 @@ public interface AppointmentMapper {
     /** 该时段占用数（BOOKED + ARRIVED） */
     int countSlot(@Param("date") String date, @Param("slot") String slot);
 
-    int insert(Appointment a);
+    /**
+     * 插入时同时写 service_name_snapshot（旧库迁移后才有该列；新库无此列时由调用方退回 insertWithoutSnapshot）。
+     * 快照保证历史预约在美容单项改名或删除后仍显示当时的项目名。
+     */
+    int insertWithSnapshot(Appointment a);
+
+    /** 新库（无 service_name_snapshot 列）的插入。 */
+    int insertWithoutSnapshot(Appointment a);
 
     int updateStatus(@Param("id") Long id, @Param("status") String status);
 

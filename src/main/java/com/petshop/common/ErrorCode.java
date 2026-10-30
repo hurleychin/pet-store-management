@@ -14,6 +14,7 @@ public enum ErrorCode {
     CARD_VOID("该卡已作废，无法使用"),
     CARD_NOT_FOUND("卡不存在"),
     CARD_NOT_MATCH_SERVICE("该卡不适用于此服务项目"),
+    CARD_NOT_MATCH_SERVICE_PRICE("该卡未配置适用服务，只能抵扣美容单项；按价目表开的服务请收现金或改用指定了适用服务的卡"),
     DISCOUNT_EXCEED_TOTAL("折扣金额不能大于商品总额"),
     STOCK_NOT_ENOUGH("库存不足"),
     BILL_NOT_TODAY("只能反结账当天的单据"),

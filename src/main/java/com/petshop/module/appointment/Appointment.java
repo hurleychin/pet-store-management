@@ -9,10 +9,9 @@ public class Appointment {
     private Long id;
     private Long customerId;
     private Long petId;
-    private Long serviceId;
+    private Long serviceId;       // #7 美容单项 service_beauty_item.id；历史预约迁移后为空
     private LocalDate appointDate;
     private String slot;          // 'HH:mm'
-    private String sizeTier;
     private String status;        // BOOKED/ARRIVED/DONE/CANCELLED/NO_SHOW
     private Long billId;
     private String remark;
@@ -24,7 +23,9 @@ public class Appointment {
     private String breed;
     private String ownerName;
     private String ownerPhone;
-    private String serviceName;
+    private String serviceName;   // 关联美容单项名称（历史预约无关联时由 serviceNameSnapshot 兜底）
+    /** 建单时的项目名快照（迁移后的旧库才有该列） */
+    private String serviceNameSnapshot;
     private String billNo;
 
     public Long getId() { return id; }
@@ -39,8 +40,6 @@ public class Appointment {
     public void setAppointDate(LocalDate appointDate) { this.appointDate = appointDate; }
     public String getSlot() { return slot; }
     public void setSlot(String slot) { this.slot = slot; }
-    public String getSizeTier() { return sizeTier; }
-    public void setSizeTier(String sizeTier) { this.sizeTier = sizeTier; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Long getBillId() { return billId; }
@@ -61,6 +60,8 @@ public class Appointment {
     public void setOwnerPhone(String ownerPhone) { this.ownerPhone = ownerPhone; }
     public String getServiceName() { return serviceName; }
     public void setServiceName(String serviceName) { this.serviceName = serviceName; }
+    public String getServiceNameSnapshot() { return serviceNameSnapshot; }
+    public void setServiceNameSnapshot(String serviceNameSnapshot) { this.serviceNameSnapshot = serviceNameSnapshot; }
     public String getBillNo() { return billNo; }
     public void setBillNo(String billNo) { this.billNo = billNo; }
 }

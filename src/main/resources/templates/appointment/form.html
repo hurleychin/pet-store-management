@@ -38,7 +38,7 @@
             </div>
           </div>
           <div class="field">
-            <label>服务项目</label>
+            <label>美容单项</label>
             <select class="input" name="serviceId" required>
               <option value="" disabled selected>— 请选择 —</option>
               <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}"></option>

@@ -6,7 +6,7 @@ import com.petshop.common.Money;
 import com.petshop.common.SessionUser;
 import com.petshop.module.audit.AuditService;
 import com.petshop.module.product.ProductMapper;
-import com.petshop.module.svc.ServiceItemMapper;
+import com.petshop.module.svc.ServiceBeautyItemService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,14 +26,14 @@ import java.time.YearMonth;
 public class StaffController {
 
     private final CommissionService service;
-    private final ServiceItemMapper serviceItemMapper;
+    private final ServiceBeautyItemService beautyItemService;
     private final ProductMapper productMapper;
     private final AuditService audit;
 
-    public StaffController(CommissionService service, ServiceItemMapper serviceItemMapper,
+    public StaffController(CommissionService service, ServiceBeautyItemService beautyItemService,
                            ProductMapper productMapper, AuditService audit) {
         this.service = service;
-        this.serviceItemMapper = serviceItemMapper;
+        this.beautyItemService = beautyItemService;
         this.productMapper = productMapper;
         this.audit = audit;
     }
@@ -74,7 +74,8 @@ public class StaffController {
     @GetMapping("/commission-rules")
     public String rules(Model model) {
         model.addAttribute("rules", service.rules());
-        model.addAttribute("services", serviceItemMapper.findActive());
+        // #7 指定服务的提成规则按美容单项匹配（价目格子行只命中「不限服务」规则）
+        model.addAttribute("services", beautyItemService.findBookable());
         model.addAttribute("products", productMapper.findActive());
         return "staff/rule-list";
     }

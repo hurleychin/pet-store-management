@@ -14,8 +14,6 @@ import com.petshop.module.customer.PetMapper;
 import com.petshop.module.product.Product;
 import com.petshop.module.product.ProductMapper;
 import com.petshop.module.product.ProductService;
-import com.petshop.module.svc.ServiceItem;
-import com.petshop.module.svc.ServiceItemMapper;
 import com.petshop.module.customer.Customer;
 import com.petshop.module.customer.MemberGroupService;
 import com.petshop.module.svc.ServiceBeautyItem;
@@ -55,7 +53,6 @@ public class BillService {
 
     private final BillMapper billMapper;
     private final BillItemMapper itemMapper;
-    private final ServiceItemMapper serviceItemMapper;
     private final ProductMapper productMapper;
     private final PetMapper petMapper;
     private final CardService cardService;
@@ -73,7 +70,7 @@ public class BillService {
     private final ServicePricingService pricingService;
 
     public BillService(BillMapper billMapper, BillItemMapper itemMapper,
-                       ServiceItemMapper serviceItemMapper, ProductMapper productMapper,
+                       ProductMapper productMapper,
                        PetMapper petMapper, CardService cardService, CustomerCardMapper cardMapper,
                        com.petshop.module.card.CardLogMapper cardLogMapper,
                        ProductService productService, ConfigService configService,
@@ -85,7 +82,6 @@ public class BillService {
                        ServicePricingService pricingService) {
         this.billMapper = billMapper;
         this.itemMapper = itemMapper;
-        this.serviceItemMapper = serviceItemMapper;
         this.productMapper = productMapper;
         this.petMapper = petMapper;
         this.cardService = cardService;
@@ -194,13 +190,20 @@ public class BillService {
                     if (qty != 1) {
                         throw new BizException(ErrorCode.PARAM_INVALID, "使用次卡抵扣的明细数量必须为 1");
                     }
-                    // 校验卡适用该服务（卡类型未配置适用服务 = 不限）
+                    // 校验卡适用该服务（#7 适用服务存美容单项 id）：
+                    // - 卡类型未配置适用服务 = 不限，价目格子行与美容单项行都可抵扣；
+                    // - 配置了适用服务：美容单项行按单项 id 匹配，价目格子行没有单项可匹配，视为不适用
                     com.petshop.module.card.CustomerCard card =
                             cardService.mustFind(f.getCardId());
                     if (card.getCardTypeId() != null) {
                         List<Long> applicable = cardService.findType(card.getCardTypeId()).serviceIdList();
-                        if (!applicable.isEmpty() && !applicable.contains(line.refId)) {
-                            throw new BizException(ErrorCode.CARD_NOT_MATCH_SERVICE);
+                        if (!applicable.isEmpty()) {
+                            if (!"BEAUTY".equals(line.source)) {
+                                throw new BizException(ErrorCode.CARD_NOT_MATCH_SERVICE_PRICE);
+                            }
+                            if (!applicable.contains(line.refId)) {
+                                throw new BizException(ErrorCode.CARD_NOT_MATCH_SERVICE);
+                            }
                         }
                     }
                     cardUsed[i] = true;
@@ -359,6 +362,7 @@ public class BillService {
 
     /** 服务行定价结果：实际引用的服务（价目行或美容单项）、标价、成交价与行折扣。 */
     private static final class ServiceLine {
+        String source;              // PRICE 价目格子 / BEAUTY 美容单项
         Long refId;
         String name;
         int listPriceCent;
@@ -382,6 +386,7 @@ public class BillService {
             throw new BizException(ErrorCode.PARAM_INVALID, "服务项目不正确");
         }
         ServiceLine line = new ServiceLine();
+        line.source = source;
         int listPrice;
         String discountType;
         int discountRate;

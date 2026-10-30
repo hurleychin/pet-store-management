@@ -406,11 +406,14 @@ render();
 
 /* v1.1 F9：预约到店转开单——预填宠物与服务项 */
 (function () {
+  // #7 预约的 service_id 指向美容单项；历史预约迁移后为空，只预填宠物
   var sid = parseInt(document.getElementById('apptServiceId').value, 10);
   var pid = parseInt(document.getElementById('apptPetId').value, 10);
-  if (sid && pid) {
+  if (pid) {
     selectPet(pid);
-    if (beautyById(sid)) { addBeauty(sid); } else { alert('预约服务不是美容单项，请手动选择价目格子'); }
+  }
+  if (sid && pid) {
+    if (beautyById(sid)) { addBeauty(sid); } else { alert('预约对应的美容单项已停用或不对收银台显示，请手动选择服务'); }
     if (document.getElementById('formErr')) {
       document.getElementById('formErr').textContent = '已带入预约服务，请核对明细后结账';
       document.getElementById('formErr').style.color = 'var(--primary)';

@@ -79,20 +79,10 @@ CREATE INDEX IF NOT EXISTS idx_event_due ON pet_event(next_due_on, contact_statu
 
 
 -- ============================================================================
--- 4. service_item 服务项目
---    洗护/美容/药浴等项目，按体型分四档价 —— 这是宠物行业与普通零售最大的差别。
+-- 4. （已删除）旧「服务项目」表
+--    #7 起由「洗护美容价目」取代：价目行 × 服务分类的价格格子、美容单项、服务分类。
+--    旧库由 DataInitializer v1.4 迁移删除该表；schema 不再建这张表。
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS service_item (
-  id             INTEGER PRIMARY KEY AUTOINCREMENT, -- 主键，自增
-  name           TEXT    NOT NULL,                  -- 服务名称，如「精洗」「剪毛造型」「药浴」
-  duration_min   INTEGER NOT NULL DEFAULT 60,       -- 标准耗时（分钟），用于 P1 预约看板算占位；体型越大实际越久，此处为基准值
-  price_s_cent   INTEGER NOT NULL DEFAULT 0,        -- 小体型价（≤5kg），单位分；0 表示该体型不接此服务，不是免费
-  price_m_cent   INTEGER NOT NULL DEFAULT 0,        -- 中体型价（5–15kg），单位分
-  price_l_cent   INTEGER NOT NULL DEFAULT 0,        -- 大体型价（15–30kg），单位分
-  price_xl_cent  INTEGER NOT NULL DEFAULT 0,        -- 超大体型价（>30kg），单位分；金毛/阿拉斯加按这档收
-  sort_no        INTEGER NOT NULL DEFAULT 0,        -- 排序号，小的在前；开单页按此顺序排列，常用项目排前面
-  is_active      INTEGER NOT NULL DEFAULT 1         -- 是否在售：1=可开单 0=已下架。停售不影响历史单据（单据存的是名称快照）
-);
 
 
 -- ============================================================================
@@ -142,7 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_ledger_product ON product_ledger(product_id, crea
 CREATE TABLE IF NOT EXISTS card_type (
   id          INTEGER PRIMARY KEY AUTOINCREMENT, -- 主键，自增
   name        TEXT    NOT NULL,                  -- 卡名称，如「洗护10次卡（送2次）」
-  service_ids TEXT    NOT NULL,                  -- 适用服务项目 id 列表，逗号分隔，如 '3,4,7'；核销时校验，不匹配则拒绝 CARD_NOT_MATCH_SERVICE
+  service_ids TEXT    NOT NULL,                  -- 适用美容单项 service_beauty_item.id 列表，逗号分隔，如 '3,4,7'；空 = 不限（价目格子行也可抵扣）；核销时不匹配则拒绝 CARD_NOT_MATCH_SERVICE
   paid_qty    INTEGER NOT NULL,                  -- 付费次数（客户真正掏钱买的部分）
   gift_qty    INTEGER NOT NULL DEFAULT 0,        -- 赠送次数；★必须与 paid_qty 分开记：退款只退 paid 部分，营收只确认 paid 部分
   price_cent  INTEGER NOT NULL,                  -- 售价，单位分
@@ -388,10 +378,10 @@ CREATE TABLE IF NOT EXISTS appointment (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_id  INTEGER NOT NULL REFERENCES customer(id),
   pet_id       INTEGER NOT NULL REFERENCES pet(id),
-  service_id   INTEGER NOT NULL REFERENCES service_item(id),
+  service_id   INTEGER REFERENCES service_beauty_item(id), -- #7 美容单项；历史预约迁移后为空；转开单预填该单项
   appoint_date TEXT    NOT NULL,             -- 预约日 'yyyy-MM-dd'
   slot         TEXT    NOT NULL,             -- 时段 'HH:mm'，30 分钟粒度
-  size_tier    TEXT,                         -- 建单时体型档快照（估价用）
+  -- size_tier 已废弃（#7 预约不再按体型档估价）；旧库保留该列占位，新库不建
   status       TEXT    NOT NULL DEFAULT 'BOOKED', -- BOOKED/ARRIVED/DONE/CANCELLED/NO_SHOW
   bill_id      INTEGER,                      -- 转开单后的 bill.id
   remark       TEXT,
@@ -545,7 +535,7 @@ CREATE INDEX IF NOT EXISTS idx_staff_active ON staff(is_active, role);
 CREATE TABLE IF NOT EXISTS commission_rule (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   scope          TEXT    NOT NULL,             -- SERVICE/PRODUCT/BOARDING/CARD/ALL
-  ref_id         INTEGER,
+  ref_id         INTEGER,                      -- SERVICE→service_beauty_item.id（空=不限服务）；PRODUCT→product.id
   staff_role     TEXT,
   ratio_bp       INTEGER NOT NULL DEFAULT 0,   -- 1500 = 15%
   fixed_cent     INTEGER NOT NULL DEFAULT 0,

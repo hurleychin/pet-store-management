@@ -5,8 +5,7 @@ import com.petshop.common.ErrorCode;
 import com.petshop.common.SessionUser;
 import com.petshop.module.customer.Customer;
 import com.petshop.module.customer.CustomerMapper;
-import com.petshop.module.svc.ServiceItem;
-import com.petshop.module.svc.ServiceItemMapper;
+import com.petshop.module.svc.ServiceBeautyItemService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,17 +26,17 @@ public class CardController {
     private final CustomerCardMapper cardMapper;
     private final CardLogMapper logMapper;
     private final CustomerMapper customerMapper;
-    private final ServiceItemMapper serviceItemMapper;
+    private final ServiceBeautyItemService beautyItemService;
 
     public CardController(CardService service, CardTypeMapper typeMapper, CustomerCardMapper cardMapper,
                           CardLogMapper logMapper, CustomerMapper customerMapper,
-                          ServiceItemMapper serviceItemMapper) {
+                          ServiceBeautyItemService beautyItemService) {
         this.service = service;
         this.typeMapper = typeMapper;
         this.cardMapper = cardMapper;
         this.logMapper = logMapper;
         this.customerMapper = customerMapper;
-        this.serviceItemMapper = serviceItemMapper;
+        this.beautyItemService = beautyItemService;
     }
 
     // ---------------- 卡类型维护（ADMIN） ----------------
@@ -45,7 +44,8 @@ public class CardController {
     @GetMapping("/card-types")
     public String types(Model model) {
         model.addAttribute("types", typeMapper.findAll());
-        model.addAttribute("services", serviceItemMapper.findAll());
+        // #7 适用服务改选美容单项（启用且分类可见）
+        model.addAttribute("services", beautyItemService.findBookable());
         return "card/type-list";
     }
 
@@ -85,7 +85,7 @@ public class CardController {
     public String sellPage(@RequestParam(required = false) Long customerId, Model model) {
         model.addAttribute("customers", customerMapper.listActive());
         model.addAttribute("types", typeMapper.findActive());
-        model.addAttribute("services", serviceItemMapper.findActive());
+        model.addAttribute("services", beautyItemService.findBookable());
         model.addAttribute("customerId", customerId);
         return "card/sell";
     }

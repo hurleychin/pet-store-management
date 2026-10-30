@@ -7,7 +7,7 @@ public class CommissionRule {
 
     private Long id;
     private String scope;          // SERVICE / PRODUCT / BOARDING / CARD / ALL
-    private Long refId;            // SERVICE→service_item.id；PRODUCT→product.id
+    private Long refId;            // SERVICE→service_beauty_item.id（空=不限服务）；PRODUCT→product.id
     private String staffRole;      // 限定岗位，null=不限
     private int ratioBp;           // 万分比，1500 = 15%
     private int fixedCent;         // 固定提成（分/件 或 分/单）

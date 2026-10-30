@@ -42,7 +42,7 @@
 
           <h2 class="sub mt16" th:text="${date} + ' 预约'"></h2>
           <table class="tbl">
-            <thead><tr><th>时段</th><th>宠物</th><th>项目</th><th>主人/电话</th><th>档位</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>时段</th><th>宠物</th><th>项目</th><th>主人/电话</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
               <tr th:each="a : ${items}">
                 <td><b th:text="${a.slot}"></b></td>
@@ -50,7 +50,6 @@
                 <td th:text="${a.serviceName}"></td>
                 <td><span th:text="${a.ownerName}"></span>
                     <a class="small" th:href="'tel:' + ${a.ownerPhone}" th:text="${a.ownerPhone}"></a></td>
-                <td th:text="${ui.tier(a.sizeTier)}"></td>
                 <td><span class="badge" th:classappend="${a.status == 'BOOKED'} ? 'primary' : (${a.status == 'ARRIVED'} ? 'ok' : (${a.status == 'CANCELLED' or a.status == 'NO_SHOW'} ? 'danger' : ''))"
                           th:text="${ui.apptStatus(a.status)}"></span></td>
                 <td>
