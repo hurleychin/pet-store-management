@@ -37,7 +37,7 @@ public class ServiceBeautyItemController {
                       RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
         ServiceBeautyItem item = service.save(null, name, categoryId(categoryId), retailPriceYuan,
                 discountType, discountRate);
-        audit.log("SERVICE_BEAUTY_ITEM_CREATE", "SERVICE_BEAUTY_ITEM", item.getId(), null, desc(item),
+        audit.log("SERVICE_BEAUTY_ITEM_CREATE", "SERVICE_BEAUTY_ITEM", item.getId(), null, SvcAuditSnapshots.beautyItem(item),
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "美容单项已新增");
         return "redirect:/services";
@@ -51,7 +51,7 @@ public class ServiceBeautyItemController {
                         RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
         java.util.List<ServiceBeautyItem> created = service.batchAdd(categoryId, discountType, discountRate, lines);
         for (ServiceBeautyItem item : created) {
-            audit.log("SERVICE_BEAUTY_ITEM_CREATE", "SERVICE_BEAUTY_ITEM", item.getId(), null, desc(item),
+            audit.log("SERVICE_BEAUTY_ITEM_CREATE", "SERVICE_BEAUTY_ITEM", item.getId(), null, SvcAuditSnapshots.beautyItem(item),
                     user(session), request.getRemoteAddr());
         }
         ra.addFlashAttribute("okMsg", "已批量新增 " + created.size() + " 个美容单项");
@@ -67,10 +67,10 @@ public class ServiceBeautyItemController {
                        @RequestParam(required = false) String discountRate,
                        RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
         ServiceBeautyItem before = service.requireExists(id);
-        String beforeJson = desc(before);
+        String beforeJson = SvcAuditSnapshots.beautyItem(before);
         ServiceBeautyItem after = service.save(id, name, categoryId(categoryId), retailPriceYuan,
                 discountType, discountRate);
-        audit.log("SERVICE_BEAUTY_ITEM_UPDATE", "SERVICE_BEAUTY_ITEM", id, beforeJson, desc(after),
+        audit.log("SERVICE_BEAUTY_ITEM_UPDATE", "SERVICE_BEAUTY_ITEM", id, beforeJson, SvcAuditSnapshots.beautyItem(after),
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "美容单项已保存");
         return "redirect:/services";
@@ -82,9 +82,9 @@ public class ServiceBeautyItemController {
                            @RequestParam(defaultValue = "false") boolean showShop,
                            @RequestParam(defaultValue = "false") boolean earnPoints,
                            RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
-        String beforeJson = desc(service.requireExists(id));
+        String beforeJson = SvcAuditSnapshots.beautyItem(service.requireExists(id));
         ServiceBeautyItem after = service.saveSwitches(id, showCashier, showShop, earnPoints);
-        audit.log("SERVICE_BEAUTY_ITEM_SWITCHES", "SERVICE_BEAUTY_ITEM", id, beforeJson, desc(after),
+        audit.log("SERVICE_BEAUTY_ITEM_SWITCHES", "SERVICE_BEAUTY_ITEM", id, beforeJson, SvcAuditSnapshots.beautyItem(after),
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "服务开关已保存");
         return "redirect:/services";
@@ -93,7 +93,7 @@ public class ServiceBeautyItemController {
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id,
                          RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
-        String beforeJson = desc(service.requireExists(id));
+        String beforeJson = SvcAuditSnapshots.beautyItem(service.requireExists(id));
         service.delete(id);
         audit.log("SERVICE_BEAUTY_ITEM_DELETE", "SERVICE_BEAUTY_ITEM", id, beforeJson, null,
                 user(session), request.getRemoteAddr());
@@ -110,13 +110,6 @@ public class ServiceBeautyItemController {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    private String desc(ServiceBeautyItem i) {
-        return "name=" + i.getName() + ", categoryId=" + i.getCategoryId()
-                + ", price=" + i.getRetailPriceCent() + ", discount=" + i.getDiscountType()
-                + "/" + i.getDiscountRate() + ", cashier=" + i.getShowCashier()
-                + ", shop=" + i.getShowShop() + ", points=" + i.getEarnPoints();
     }
 
     private SessionUser user(HttpSession session) {

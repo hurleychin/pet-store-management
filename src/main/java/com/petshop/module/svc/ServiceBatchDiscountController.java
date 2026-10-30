@@ -62,11 +62,22 @@ public class ServiceBatchDiscountController {
                                 @RequestParam(required = false) String discountRate,
                                 @RequestParam(required = false) Long categoryId,
                                 RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
+        java.util.List<ServiceBeautyItem> before = new java.util.ArrayList<>();
+        for (Long id : new java.util.LinkedHashSet<>(ids == null ? java.util.Collections.<Long>emptyList() : ids)) {
+            before.add(beautyItemService.requireExists(id));
+        }
         List<ServiceBeautyItem> changed = beautyItemService.batchSetDiscount(ids, discountType, discountRate);
-        String summary = "discountType=" + changed.get(0).getDiscountType() + "/" + changed.get(0).getDiscountRate();
+        List<Long> changedIds = new java.util.ArrayList<>();
         for (ServiceBeautyItem item : changed) {
-            audit.log("SERVICE_BEAUTY_ITEM_BATCH_DISCOUNT", "SERVICE_BEAUTY_ITEM", item.getId(), null,
-                    summary, user(session), request.getRemoteAddr());
+            changedIds.add(item.getId());
+        }
+        // 每个被改项目一条，带各自改前折扣与本次批量涉及的项目 id 列表
+        for (int i = 0; i < changed.size(); i++) {
+            ServiceBeautyItem item = changed.get(i);
+            audit.log("SERVICE_BEAUTY_ITEM_BATCH_DISCOUNT", "SERVICE_BEAUTY_ITEM", item.getId(),
+                    SvcAuditSnapshots.beautyItem(before.get(i)),
+                    SvcAuditSnapshots.beautyItemDiscount(item, changedIds),
+                    user(session), request.getRemoteAddr());
         }
         ra.addFlashAttribute("okMsg", "已为 " + changed.size() + " 个项目设置服务折扣");
         return "redirect:" + (categoryId == null ? "/services/discount-batch"

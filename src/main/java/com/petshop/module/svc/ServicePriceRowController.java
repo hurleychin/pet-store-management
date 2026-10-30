@@ -41,7 +41,8 @@ public class ServicePriceRowController {
         ServicePriceRow after = service.saveRow(id, animal, description, dogSize, furLength, breedTags, sortNo);
         audit.log(id == null ? "SERVICE_PRICE_ROW_CREATE" : "SERVICE_PRICE_ROW_UPDATE",
                 "SERVICE_PRICE_ROW", after.getId(),
-                before == null ? null : desc(before), desc(after),
+                before == null ? null : SvcAuditSnapshots.priceRow(before),
+                SvcAuditSnapshots.priceRow(after),
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", id == null ? "价目行已新增" : "价目行已保存");
         return "redirect:/services";
@@ -53,7 +54,8 @@ public class ServicePriceRowController {
         ServicePriceRow before = service.findRow(id);
         service.deleteRow(id);
         audit.log("SERVICE_PRICE_ROW_DELETE", "SERVICE_PRICE_ROW", id,
-                before == null ? null : desc(before), null, user(session), request.getRemoteAddr());
+                before == null ? null : SvcAuditSnapshots.priceRow(before), null,
+                user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "价目行已删除");
         return "redirect:/services";
     }
@@ -67,10 +69,15 @@ public class ServicePriceRowController {
                            @RequestParam(required = false) String discountRate,
                            RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
         Integer cent = priceCent(priceYuan);
+        ServicePriceCell before = service.findCell(id, categoryId);
         service.saveCell(id, categoryId, cent, discountType, discountRate);
+        // 改前 / 改后都取落库后的真实值：未定价、默认全额等归一化后的口径也能对上
+        ServicePriceCell after = service.findCell(id, categoryId);
         audit.log("SERVICE_PRICE_CELL_UPDATE", "SERVICE_PRICE_CELL", id,
-                null, "categoryId=" + categoryId + ", priceCent=" + cent
-                        + ", discountType=" + discountType + ", discountRate=" + discountRate,
+                before == null ? null : SvcAuditSnapshots.priceCell(before.getCategoryId(), before.getPriceCent(),
+                        before.getDiscountType(), before.getDiscountRate()),
+                after == null ? null : SvcAuditSnapshots.priceCell(after.getCategoryId(), after.getPriceCent(),
+                        after.getDiscountType(), after.getDiscountRate()),
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "价格格子已保存");
         return "redirect:/services";
@@ -86,12 +93,6 @@ public class ServicePriceRowController {
             throw new BizException(ErrorCode.PARAM_INVALID, "格子价格不能为负数");
         }
         return cent;
-    }
-
-    private String desc(ServicePriceRow r) {
-        return "animal=" + r.getAnimal() + ", description=" + r.getDescription()
-                + ", dogSize=" + r.getDogSize() + ", furLength=" + r.getFurLength()
-                + ", breedTags=" + r.getBreedTags() + ", sortNo=" + r.getSortNo();
     }
 
     private SessionUser user(HttpSession session) {

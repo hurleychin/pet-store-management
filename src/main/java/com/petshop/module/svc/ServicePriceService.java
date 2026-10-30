@@ -30,6 +30,10 @@ public class ServicePriceService {
         return id == null ? null : mapper.findRowById(id);
     }
 
+    public ServicePriceCell findCell(Long rowId, Long categoryId) {
+        return rowId == null || categoryId == null ? null : mapper.findCell(rowId, categoryId);
+    }
+
     /** rowId -> (categoryId -> 格子)，供价目表逐格渲染。 */
     public Map<Long, Map<Long, ServicePriceCell>> cellIndex() {
         Map<Long, Map<Long, ServicePriceCell>> index = new HashMap<>();

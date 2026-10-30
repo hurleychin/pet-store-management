@@ -30,12 +30,12 @@ public class ServiceCategoryController {
                        @RequestParam String name,
                        @RequestParam String degree,
                        RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
-        ServiceCategory before = id == null ? null : service.findAll().stream()
-                .filter(c -> c.getId().equals(id)).findFirst().orElse(null);
+        ServiceCategory before = find(id);
         ServiceCategory after = service.save(id, name, degree);
         audit.log(id == null ? "SERVICE_CATEGORY_CREATE" : "SERVICE_CATEGORY_UPDATE",
                 "SERVICE_CATEGORY", after.getId(),
-                before == null ? null : desc(before), desc(after),
+                before == null ? null : SvcAuditSnapshots.category(before),
+                SvcAuditSnapshots.category(after),
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", id == null ? "服务分类已新增" : "服务分类已保存");
         return "redirect:/services";
@@ -44,9 +44,13 @@ public class ServiceCategoryController {
     @PostMapping("/{id}/visibility")
     public String visibility(@PathVariable Long id, @RequestParam boolean visible,
                              RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
+        ServiceCategory before = find(id);
         service.setVisible(id, visible);
-        audit.log("SERVICE_CATEGORY_VISIBILITY", "SERVICE_CATEGORY", id, null,
-                "visible=" + visible, user(session), request.getRemoteAddr());
+        ServiceCategory after = find(id);
+        audit.log("SERVICE_CATEGORY_VISIBILITY", "SERVICE_CATEGORY", id,
+                before == null ? null : SvcAuditSnapshots.category(before),
+                after == null ? null : SvcAuditSnapshots.category(after),
+                user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", visible ? "服务分类已显示" : "服务分类已隐藏");
         return "redirect:/services";
     }
@@ -54,9 +58,13 @@ public class ServiceCategoryController {
     @PostMapping("/{id}/move")
     public String move(@PathVariable Long id, @RequestParam String dir,
                        RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
+        ServiceCategory before = find(id);
         service.move(id, dir);
-        audit.log("SERVICE_CATEGORY_MOVE", "SERVICE_CATEGORY", id, null,
-                "dir=" + dir, user(session), request.getRemoteAddr());
+        ServiceCategory after = find(id);
+        audit.log("SERVICE_CATEGORY_MOVE", "SERVICE_CATEGORY", id,
+                before == null ? null : SvcAuditSnapshots.category(before),
+                after == null ? null : SvcAuditSnapshots.category(after),
+                user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "服务分类顺序已调整");
         return "redirect:/services";
     }
@@ -64,15 +72,18 @@ public class ServiceCategoryController {
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id,
                          RedirectAttributes ra, HttpSession session, HttpServletRequest request) {
+        ServiceCategory before = find(id);
         service.delete(id);
-        audit.log("SERVICE_CATEGORY_DELETE", "SERVICE_CATEGORY", id, null, null,
+        audit.log("SERVICE_CATEGORY_DELETE", "SERVICE_CATEGORY", id,
+                before == null ? null : SvcAuditSnapshots.category(before), null,
                 user(session), request.getRemoteAddr());
         ra.addFlashAttribute("okMsg", "服务分类已删除");
         return "redirect:/services";
     }
 
-    private String desc(ServiceCategory c) {
-        return "name=" + c.getName() + ", degree=" + c.getDegree();
+    private ServiceCategory find(Long id) {
+        return id == null ? null : service.findAll().stream()
+                .filter(c -> c.getId().equals(id)).findFirst().orElse(null);
     }
 
     private SessionUser user(HttpSession session) {

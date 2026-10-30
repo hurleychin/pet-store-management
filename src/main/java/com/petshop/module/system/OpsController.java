@@ -103,6 +103,20 @@ public class OpsController {
         ACTIONS.put("SUPPLIER_UPDATE", "修改供应商");
         ACTIONS.put("BACKUP_RESTORE", "备份恢复");
         ACTIONS.put("DATA_EXPORT", "数据导出");
+        ACTIONS.put("SERVICE_PRICE_CELL_UPDATE", "价格格子改价");
+        ACTIONS.put("SERVICE_PRICE_ROW_CREATE", "新增价目行");
+        ACTIONS.put("SERVICE_PRICE_ROW_UPDATE", "修改价目行");
+        ACTIONS.put("SERVICE_PRICE_ROW_DELETE", "删除价目行");
+        ACTIONS.put("SERVICE_CATEGORY_CREATE", "新增服务分类");
+        ACTIONS.put("SERVICE_CATEGORY_UPDATE", "修改服务分类");
+        ACTIONS.put("SERVICE_CATEGORY_VISIBILITY", "服务分类显示/隐藏");
+        ACTIONS.put("SERVICE_CATEGORY_MOVE", "服务分类调序");
+        ACTIONS.put("SERVICE_CATEGORY_DELETE", "删除服务分类");
+        ACTIONS.put("SERVICE_BEAUTY_ITEM_CREATE", "新增美容单项");
+        ACTIONS.put("SERVICE_BEAUTY_ITEM_UPDATE", "修改美容单项");
+        ACTIONS.put("SERVICE_BEAUTY_ITEM_SWITCHES", "美容单项服务开关");
+        ACTIONS.put("SERVICE_BEAUTY_ITEM_BATCH_DISCOUNT", "美容单项批量折扣");
+        ACTIONS.put("SERVICE_BEAUTY_ITEM_DELETE", "删除美容单项");
     }
 
     // ==================== 数据体检 ====================
