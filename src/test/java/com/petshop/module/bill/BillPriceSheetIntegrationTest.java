@@ -167,6 +167,21 @@ class BillPriceSheetIntegrationTest {
         assertEquals(8800, bill(billId).get("receivable_cent"));
     }
 
+    @Test
+    void manualPriceAboveListPriceOrOnCardLineIsRejected() throws Exception {
+        BillForm.Item higher = item("PRICE", rowDog, catWash, pet, null, 1);
+        higher.setUnitPriceCent(12000);
+        MvcResult r = postSettle(customer, Arrays.asList(higher), "0", "");
+        assertEquals(0L, bills(customer), "手改价高于价目不得落单");
+        assertTrue(String.valueOf(r.getFlashMap().get("errMsg")).contains("不能高于"));
+
+        BillForm.Item onCard = item("PRICE", rowDog, catWash, pet, 8800, 1);
+        onCard.setCardId(-1L);
+        r = postSettle(customer, Arrays.asList(onCard), "0", "");
+        assertEquals(0L, bills(customer), "卡抵扣行不能手改价");
+        assertTrue(String.valueOf(r.getFlashMap().get("errMsg")).contains("不能手工改价"));
+    }
+
     // ------------------------------------------------------------ 切片：会员组折扣 / 散客组
 
     @Test
