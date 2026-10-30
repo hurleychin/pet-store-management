@@ -700,3 +700,33 @@ CREATE TABLE IF NOT EXISTS service_category (
   is_visible INTEGER NOT NULL DEFAULT 1         -- 1=显示（可开单） 0=隐藏（价目表保留列，不可开单）
 );
 CREATE INDEX IF NOT EXISTS idx_service_category_sort ON service_category(sort_no, id);
+
+-- ============================================================================
+-- 35. service_price_row 价目行（v1.3 洗护美容价目）
+--    价目表的行：宠物类型 + 自定义描述，显示为「狗：0-3kg」；肩高/毛长/品种仅作展示标签。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS service_price_row (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  animal      TEXT    NOT NULL DEFAULT 'DOG',  -- 宠物类型：DOG=狗 / CAT=猫
+  description TEXT    NOT NULL,                -- 自定义描述，如「0-3kg」「5kg 短毛」
+  dog_size    TEXT,                            -- 肩高分段标签（逗号分隔），仅展示
+  fur_length  TEXT,                            -- 毛长标签，仅展示
+  breed_tags  TEXT,                            -- 品种标签（逗号分隔），仅展示
+  sort_no     INTEGER NOT NULL DEFAULT 0       -- 排序号，小的在前
+);
+CREATE INDEX IF NOT EXISTS idx_service_price_row_sort ON service_price_row(sort_no, id);
+
+-- ============================================================================
+-- 36. service_price_cell 价格格子（v1.3 洗护美容价目）
+--    价目行 × 服务分类唯一；金额以「分」存储；服务折扣见 discount_type / discount_rate。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS service_price_cell (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  row_id        INTEGER NOT NULL REFERENCES service_price_row(id) ON DELETE CASCADE,
+  category_id   INTEGER NOT NULL REFERENCES service_category(id),
+  price_cent    INTEGER NOT NULL DEFAULT 0,     -- 标价（分）
+  discount_type TEXT    NOT NULL DEFAULT 'FULL',-- 服务折扣：GROUP=会员组折扣 / FULL=全额 / RATE=按折扣率
+  discount_rate REAL    NOT NULL DEFAULT 10     -- 折扣率定点（10=原价，8.5=8.5 折）
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_service_price_cell ON service_price_cell(row_id, category_id);
+CREATE INDEX IF NOT EXISTS idx_service_price_cell_category ON service_price_cell(category_id);

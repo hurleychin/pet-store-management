@@ -100,6 +100,18 @@ public class UiHelper {
         }
     }
 
+    /** 服务折扣：GROUP=会员组折扣 / FULL=全额 / RATE=9折（或 8.5折） */
+    public String discount(String type, Double rate) {
+        if ("GROUP".equals(type)) return "会员组折扣";
+        if ("RATE".equals(type)) {
+            if (rate == null) return "折扣";
+            double r = rate;
+            return (r == Math.rint(r) ? String.valueOf((long) r) : java.math.BigDecimal.valueOf(r).stripTrailingZeros().toPlainString())
+                    + "折";
+        }
+        return "全额";
+    }
+
     public String species(String s) {
         if (s == null) return "—";
         switch (s) {

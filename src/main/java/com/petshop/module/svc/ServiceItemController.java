@@ -18,16 +18,21 @@ public class ServiceItemController {
 
     private final ServiceItemMapper mapper;
     private final ServiceCategoryService categoryService;
+    private final ServicePriceService priceService;
 
-    public ServiceItemController(ServiceItemMapper mapper, ServiceCategoryService categoryService) {
+    public ServiceItemController(ServiceItemMapper mapper, ServiceCategoryService categoryService,
+                                 ServicePriceService priceService) {
         this.mapper = mapper;
         this.categoryService = categoryService;
+        this.priceService = priceService;
     }
 
     @GetMapping
     public String list(Model model) {
         model.addAttribute("items", mapper.findAll());
         model.addAttribute("categories", categoryService.findAll());
+        model.addAttribute("priceRows", priceService.findRows());
+        model.addAttribute("priceCells", priceService.cellIndex());
         return "svc/list";
     }
 

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petshop.module.svc.ServicePriceMapper">
+
+    <resultMap id="rowMap" type="com.petshop.module.svc.ServicePriceRow">
+        <id property="id" column="id"/>
+        <result property="animal" column="animal"/>
+        <result property="description" column="description"/>
+        <result property="dogSize" column="dog_size"/>
+        <result property="furLength" column="fur_length"/>
+        <result property="breedTags" column="breed_tags"/>
+        <result property="sortNo" column="sort_no"/>
+    </resultMap>
+
+    <resultMap id="cellMap" type="com.petshop.module.svc.ServicePriceCell">
+        <id property="id" column="id"/>
+        <result property="rowId" column="row_id"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="priceCent" column="price_cent"/>
+        <result property="discountType" column="discount_type"/>
+        <result property="discountRate" column="discount_rate"/>
+    </resultMap>
+
+    <select id="findRows" resultMap="rowMap">
+        SELECT * FROM service_price_row ORDER BY sort_no, id
+    </select>
+
+    <select id="findRowById" resultMap="rowMap">
+        SELECT * FROM service_price_row WHERE id = #{id}
+    </select>
+
+    <insert id="insertRow" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO service_price_row(animal, description, dog_size, fur_length, breed_tags, sort_no)
+        VALUES (#{animal}, #{description}, #{dogSize}, #{furLength}, #{breedTags}, #{sortNo})
+    </insert>
+
+    <update id="updateRow">
+        UPDATE service_price_row SET animal = #{animal}, description = #{description},
+               dog_size = #{dogSize}, fur_length = #{furLength}, breed_tags = #{breedTags}, sort_no = #{sortNo}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteRow">
+        DELETE FROM service_price_row WHERE id = #{id}
+    </delete>
+
+    <select id="findCells" resultMap="cellMap">
+        SELECT * FROM service_price_cell
+    </select>
+
+    <select id="findCell" resultMap="cellMap">
+        SELECT * FROM service_price_cell WHERE row_id = #{rowId} AND category_id = #{categoryId}
+    </select>
+
+    <insert id="insertCell" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO service_price_cell(row_id, category_id, price_cent, discount_type, discount_rate)
+        VALUES (#{rowId}, #{categoryId}, #{priceCent}, #{discountType}, #{discountRate})
+    </insert>
+
+    <update id="updateCell">
+        UPDATE service_price_cell SET price_cent = #{priceCent}, discount_type = #{discountType},
+               discount_rate = #{discountRate}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteCellsByRow">
+        DELETE FROM service_price_cell WHERE row_id = #{rowId}
+    </delete>
+</mapper>
