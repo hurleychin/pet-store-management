@@ -155,8 +155,8 @@ class ServiceCategoryIntegrationTest {
         assertTrue(sortC < sortB, "上移后「丙」应排在「乙」之前");
 
         String body = page(admin);
-        int ib = body.indexOf("cat-chip-name:" + PREFIX + "乙");
-        int ic = body.indexOf("cat-chip-name:" + PREFIX + "丙");
+        int ib = body.indexOf(">" + PREFIX + "乙<");
+        int ic = body.indexOf(">" + PREFIX + "丙<");
         assertTrue(ic >= 0 && ib >= 0 && ic < ib, "页面分类条顺序应与排序号一致");
     }
 

@@ -13,7 +13,7 @@
       <!-- 服务分类快捷条：按排序号列出全部分类（含隐藏），管理员可进入「修改美容洗护分类」 -->
       <div class="tabs" id="categoryBar">
         <a th:each="c : ${categories}" href="javascript:void(0)" class="cat-chip">
-          <b th:text="'cat-chip-name:' + ${c.name}">精洗</b>
+          <b th:text="${c.name}">精洗</b>
           <span class="small muted" th:text="' · ' + ${ui.degree(c.degree)}"> · 洗护类</span>
           <span th:if="${!c.isVisible}" class="badge warn">隐藏</span>
         </a>
