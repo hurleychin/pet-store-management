@@ -19,12 +19,14 @@ public class ServiceItemController {
     private final ServiceItemMapper mapper;
     private final ServiceCategoryService categoryService;
     private final ServiceBeautyItemService beautyItemService;
+    private final ServicePriceService priceService;
 
     public ServiceItemController(ServiceItemMapper mapper, ServiceCategoryService categoryService,
-                                 ServiceBeautyItemService beautyItemService) {
+                                 ServiceBeautyItemService beautyItemService, ServicePriceService priceService) {
         this.mapper = mapper;
         this.categoryService = categoryService;
         this.beautyItemService = beautyItemService;
+        this.priceService = priceService;
     }
 
     @GetMapping
@@ -35,6 +37,9 @@ public class ServiceItemController {
         model.addAttribute("visibleCategories", categoryService.findAll().stream()
                 .filter(ServiceCategory::getIsVisible).collect(java.util.stream.Collectors.toList()));
         model.addAttribute("beautyItems", beautyItemService.findAll());
+        // 价目表：行 + 格子索引
+        model.addAttribute("priceRows", priceService.findRows());
+        model.addAttribute("priceCells", priceService.cellIndex());
         return "svc/list";
     }
 

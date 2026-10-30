@@ -107,6 +107,7 @@ public class DataInitializer implements ApplicationRunner {
     private void migrateV13() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS schema_version(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
         createBeautyItemIfMissing();
+        createPriceTablesIfMissing();
         Integer done = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Integer.class);
         if (done == null || done == 0) {
@@ -133,6 +134,23 @@ public class DataInitializer implements ApplicationRunner {
                 + "is_active INTEGER NOT NULL DEFAULT 1)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_beauty_item_cat "
                 + "ON service_beauty_item(category_id, sort_no, id)");
+    }
+
+    /** v1.3 价目行 / 价格格子：与 schema.sql 第 35/36 节一致，老库在此补建（幂等）。 */
+    private void createPriceTablesIfMissing() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS service_price_row ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, animal TEXT NOT NULL DEFAULT 'DOG', "
+                + "description TEXT NOT NULL, dog_size TEXT, fur_length TEXT, breed_tags TEXT, "
+                + "sort_no INTEGER NOT NULL DEFAULT 0)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_price_row_sort ON service_price_row(sort_no, id)");
+        jdbc.execute("CREATE TABLE IF NOT EXISTS service_price_cell ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + "row_id INTEGER NOT NULL REFERENCES service_price_row(id) ON DELETE CASCADE, "
+                + "category_id INTEGER NOT NULL REFERENCES service_category(id), "
+                + "price_cent INTEGER NOT NULL DEFAULT 0, "
+                + "discount_type TEXT NOT NULL DEFAULT 'FULL', discount_rate REAL NOT NULL DEFAULT 10)");
+        jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_service_price_cell ON service_price_cell(row_id, category_id)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_price_cell_category ON service_price_cell(category_id)");
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {

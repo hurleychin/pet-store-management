@@ -8,7 +8,7 @@
     <header th:replace="fragments/header :: header"></header>
     <div class="content">
       <div th:replace="fragments/header :: flash"></div>
-      <h1 class="page-title">洗护美容价目 <span class="sub">服务分类 · 美容单项</span>
+      <h1 class="page-title">洗护美容价目 <span class="sub">价目表 · 服务分类 · 美容单项</span>
         <a class="btn sm" th:href="@{/services/discount-batch}" style="margin-left:auto"
            th:if="${session.sessionUser.isAdmin()}">批量设置折扣</a></h1>
 
@@ -94,6 +94,9 @@
           </div>
         </div>
       </div>
+
+      <!-- 价目表（独立片段，便于与其他价目区块并行合并） -->
+      <div th:replace="svc/_price-matrix :: priceMatrix"></div>
 
       <!-- 美容单项（独立片段，便于与其他价目区块并行合并） -->
       <div th:replace="svc/_beauty-items :: beautyItems"></div>

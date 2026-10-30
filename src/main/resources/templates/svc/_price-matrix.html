@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- 价目表：列为全部服务分类（含隐藏，标记不可开单），行为价目行（按排序号） -->
+<div class="card" id="priceMatrix" th:fragment="priceMatrix">
+  <div class="card-head"><span>价目表</span></div>
+  <div class="card-body flush">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>价目行</th>
+          <th th:each="c : ${categories}">
+            <span th:text="${c.name}">精洗</span>
+            <span class="small muted" th:text="' · ' + ${ui.degree(c.degree)}"> · 洗护类</span>
+            <br><span th:unless="${c.isVisible}" class="badge warn">不可开单</span>
+          </th>
+          <th th:if="${session.sessionUser.isAdmin()}"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="r : ${priceRows}">
+          <td>
+            <b th:text="${r.animal == 'CAT' ? '猫：' + r.description : '狗：' + r.description}">狗：0-3kg</b>
+            <span class="small muted">
+              <span th:if="${r.dogSize}" th:text="' · 肩高 ' + ${r.dogSize}"></span>
+              <span th:if="${r.furLength}" th:text="' · ' + ${r.furLength}"></span>
+              <span th:if="${r.breedTags}" th:text="' · ' + ${r.breedTags}"></span>
+            </span>
+          </td>
+          <td class="num" th:each="c : ${categories}"
+              th:with="cell=${priceCells.get(r.id)?.get(c.id)}">
+            <button th:if="${session.sessionUser.isAdmin()}" class="btn ghost sm"
+                    type="button" data-cell-price
+                    th:attr="onclick='document.getElementById(\'cell-edit-' + ${r.id} + '-' + ${c.id} + '\').showModal()'">
+              <span th:text="${cell != null and cell.priceCent > 0} ? ${ui.money(cell.priceCent)} : '—'">—</span>
+              <span class="small muted" th:if="${cell != null and cell.priceCent > 0}"
+                    th:text="' ' + ${ui.discount(cell.discountType, cell.discountRate)}"></span>
+            </button>
+            <span th:unless="${session.sessionUser.isAdmin()}" data-cell-price>
+              <span th:text="${cell != null and cell.priceCent > 0} ? ${ui.money(cell.priceCent)} : '—'">—</span>
+              <span class="small muted" th:if="${cell != null and cell.priceCent > 0}"
+                    th:text="' ' + ${ui.discount(cell.discountType, cell.discountRate)}"></span>
+            </span>
+            <dialog class="modal" th:id="'cell-edit-' + ${r.id} + '-' + ${c.id}"
+                    th:if="${session.sessionUser.isAdmin()}">
+              <form method="post" th:action="@{/services/price-rows/{id}/cells/save(id=${r.id})}">
+                <div class="card-body">
+                  <input type="hidden" name="categoryId" th:value="${c.id}">
+                  <div class="form-grid">
+                    <div class="field"><label>价格（元）</label>
+                      <input name="priceYuan" inputmode="decimal" placeholder="留空为未定价"
+                             th:value="${cell != null and cell.priceCent > 0} ? ${ui.yuan(cell.priceCent)} : ''"></div>
+                    <div class="field"><label>服务折扣</label>
+                      <select name="discountType">
+                        <option value="GROUP" th:selected="${cell != null and cell.discountType == 'GROUP'}">会员组折扣</option>
+                        <option value="FULL" th:selected="${cell == null or cell.discountType == 'FULL'}">全额（10 折）</option>
+                        <option value="RATE" th:selected="${cell != null and cell.discountType == 'RATE'}">按折扣率（9/8/7 折或自定义）</option>
+                      </select>
+                    </div>
+                    <div class="field"><label>折扣率</label>
+                      <input name="discountRate" inputmode="decimal" placeholder="如 8.5 表示 8.5 折"
+                             th:value="${cell != null and cell.discountType == 'RATE' and cell.discountRate > 0} ? ${#numbers.formatDecimal(cell.discountRate / 10.0, 1, 1)} : ''"></div>
+                  </div>
+                  <div class="mt16">
+                    <button class="btn" type="submit">保存</button>
+                    <button class="btn ghost" type="button"
+                            th:attr="onclick='document.getElementById(\'cell-edit-' + ${r.id} + '-' + ${c.id} + '\').close()'">取消</button>
+                  </div>
+                </div>
+              </form>
+            </dialog>
+          </td>
+          <td class="actions" th:if="${session.sessionUser.isAdmin()}">
+            <button class="btn ghost sm" type="button"
+                    th:attr="onclick='document.getElementById(\'row-edit-' + ${r.id} + '\').showModal()'">编辑</button>
+            <form method="post" th:action="@{/services/price-rows/{id}/delete(id=${r.id})}" style="display:inline"
+                  onsubmit="return confirmAct('删除该价目行？其下所有价格格子会一并删除。')">
+              <button class="btn danger sm">删除</button>
+            </form>
+            <dialog class="modal" th:id="'row-edit-' + ${r.id}">
+              <form method="post" th:action="@{/services/price-rows/save}">
+                <div class="card-body">
+                  <input type="hidden" name="id" th:value="${r.id}">
+                  <div class="form-grid">
+                    <div class="field"><label>宠物类型 *</label>
+                      <select name="animal">
+                        <option value="DOG" th:selected="${r.animal == 'DOG'}">狗</option>
+                        <option value="CAT" th:selected="${r.animal == 'CAT'}">猫</option>
+                      </select></div>
+                    <div class="field"><label>描述 *</label><input name="description" required th:value="${r.description}"></div>
+                    <div class="field"><label>肩高分段（高级标签）</label><input name="dogSize" th:value="${r.dogSize}" placeholder="如 S,M"></div>
+                    <div class="field"><label>毛长（高级标签）</label><input name="furLength" th:value="${r.furLength}" placeholder="如 短毛"></div>
+                    <div class="field"><label>品种（高级标签）</label><input name="breedTags" th:value="${r.breedTags}" placeholder="如 泰迪,比熊"></div>
+                    <div class="field"><label>排序号（小的在前）</label><input type="number" name="sortNo" th:value="${r.sortNo}"></div>
+                  </div>
+                  <div class="mt16">
+                    <button class="btn" type="submit">保存</button>
+                    <button class="btn ghost" type="button"
+                            th:attr="onclick='document.getElementById(\'row-edit-' + ${r.id} + '\').close()'">取消</button>
+                  </div>
+                </div>
+              </form>
+            </dialog>
+          </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(priceRows)}">
+          <td th:attr="colspan=${#lists.size(categories) + 2}" class="muted">还没有价目行</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card-body" th:if="${session.sessionUser.isAdmin()}">
+    <form method="post" th:action="@{/services/price-rows/save}" class="inline-form" id="rowCreate">
+      <div class="form-grid">
+        <div class="field"><label>宠物类型 *</label>
+          <select name="animal">
+            <option value="DOG" selected>狗</option>
+            <option value="CAT">猫</option>
+          </select></div>
+        <div class="field"><label>描述 *</label><input name="description" required placeholder="0-3kg / 5kg 短毛"></div>
+        <div class="field"><label>肩高分段（高级标签）</label><input name="dogSize" placeholder="如 S,M"></div>
+        <div class="field"><label>毛长（高级标签）</label><input name="furLength" placeholder="如 短毛"></div>
+        <div class="field"><label>品种（高级标签）</label><input name="breedTags" placeholder="如 泰迪,比熊"></div>
+        <div class="field"><label>排序号（小的在前）</label><input type="number" name="sortNo" value="0"></div>
+      </div>
+      <div class="mt16"><button class="btn" type="submit">新增价目行</button></div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

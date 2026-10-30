@@ -111,6 +111,15 @@ public class UiHelper {
         }
     }
 
+    /** 价目格子的服务折扣：RATE 带上折扣率（十分位整数），如 90=9折 / 85=8.5折 */
+    public String discount(String type, Integer rate) {
+        if ("RATE".equals(type) && rate != null) {
+            java.math.BigDecimal r = java.math.BigDecimal.valueOf(rate).movePointLeft(1).stripTrailingZeros();
+            return r.toPlainString() + "折";
+        }
+        return discount(type);
+    }
+
     public String species(String s) {
         if (s == null) return "—";
         switch (s) {

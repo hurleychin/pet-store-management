@@ -212,16 +212,17 @@ class ServiceCategoryIntegrationTest {
 
     @Test
     void unreferencedCategoryCanBeDeletedWhenPriceTablesExist() throws Exception {
-        // 后续工单才会正式建这两张表，这里用测试库里的临时表验证「有引用时拒绝删除」的校验
+        // 改价后价格格子正式建出（价目行／格子工单），验证「有引用时拒绝删除」
         MockHttpSession admin = admin();
         mockMvc.perform(post("/services/categories/save").session(admin)
                 .param("name", PREFIX + "有格子").param("degree", "SHOWER"));
         long id = idOf(PREFIX + "有格子");
-        jdbc.execute("CREATE TABLE IF NOT EXISTS service_price_cell ("
-                + "id INTEGER PRIMARY KEY AUTOINCREMENT, row_id INTEGER NOT NULL, "
-                + "category_id INTEGER NOT NULL, price_cent INTEGER NOT NULL DEFAULT 0)");
+        jdbc.update("DELETE FROM service_price_row WHERE description = '分类占用测试'");
+        jdbc.update("INSERT INTO service_price_row(animal, description, sort_no) VALUES('DOG', '分类占用测试', 999)");
+        Long rowId = jdbc.queryForObject(
+                "SELECT id FROM service_price_row WHERE description = '分类占用测试'", Long.class);
         try {
-            jdbc.update("INSERT INTO service_price_cell(row_id, category_id, price_cent) VALUES(1, ?, 5000)", id);
+            jdbc.update("INSERT INTO service_price_cell(row_id, category_id, price_cent) VALUES(?, ?, 5000)", rowId, id);
             mockMvc.perform(post("/services/categories/" + id + "/delete").session(admin))
                     .andExpect(status().is3xxRedirection())
                     .andExpect(flash().attribute("errMsg",
@@ -233,7 +234,8 @@ class ServiceCategoryIntegrationTest {
                     .andExpect(redirectedUrl("/services"));
             assertEquals(0, count(PREFIX + "有格子"), "引用清空后可删除");
         } finally {
-            jdbc.execute("DROP TABLE IF EXISTS service_price_cell");
+            jdbc.update("DELETE FROM service_price_cell WHERE row_id = ?", rowId);
+            jdbc.update("DELETE FROM service_price_row WHERE id = ?", rowId);
         }
     }
 

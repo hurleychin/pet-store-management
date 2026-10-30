@@ -24,6 +24,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/services/save", "/services/*/toggle",
                         "/services/categories/**",
                         "/services/beauty-items/**",
+                        "/services/price-rows/**",
                         "/products/new", "/products/save", "/products/*/edit", "/products/*/toggle",
                         "/products/*/stock",
                         "/cards/sell", "/cards/*/void", "/cards/*/extend",
