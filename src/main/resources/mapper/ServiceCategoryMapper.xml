@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.petshop.module.svc.ServiceCategoryMapper">
+
+    <resultMap id="catMap" type="com.petshop.module.svc.ServiceCategory">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="degree" column="degree"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="isVisible" column="is_visible"/>
+    </resultMap>
+
+    <select id="findById" resultMap="catMap">
+        SELECT * FROM service_category WHERE id = #{id}
+    </select>
+
+    <select id="findAll" resultMap="catMap">
+        SELECT * FROM service_category ORDER BY sort_no, id
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO service_category(name, degree, sort_no, is_visible)
+        VALUES (#{name}, #{degree}, #{sortNo}, #{isVisible})
+    </insert>
+
+    <update id="update">
+        UPDATE service_category SET name = #{name}, degree = #{degree}, sort_no = #{sortNo}
+        WHERE id = #{id}
+    </update>
+
+    <update id="setVisible">
+        UPDATE service_category SET is_visible = #{visible} WHERE id = #{id}
+    </update>
+
+    <update id="updateSortNo">
+        UPDATE service_category SET sort_no = #{sortNo} WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM service_category WHERE id = #{id}
+    </delete>
+
+    <!-- 价格格子 / 美容单项由后续工单建表；哪张表还不存在，其子查询就替换为 0 -->
+    <select id="countReferences" resultType="int">
+        SELECT
+          <choose>
+            <when test="cellExists">
+              (SELECT COUNT(*) FROM service_price_cell WHERE category_id = #{id})
+            </when>
+            <otherwise>0</otherwise>
+          </choose>
+        +
+          <choose>
+            <when test="beautyItemExists">
+              (SELECT COUNT(*) FROM service_beauty_item WHERE category_id = #{id})
+            </when>
+            <otherwise>0</otherwise>
+          </choose>
+    </select>
+</mapper>

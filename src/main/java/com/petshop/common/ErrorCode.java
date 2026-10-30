@@ -59,7 +59,9 @@ public enum ErrorCode {
     FOLLOW_UP_NOT_FOUND("待办任务不存在或已处理"),
     // v1.2 运维
     RESTORE_FILE_INVALID("备份文件损坏或不是本系统数据"),
-    MAINTENANCE_MODE("系统正在维护（数据恢复），请稍后再试");
+    MAINTENANCE_MODE("系统正在维护（数据恢复），请稍后再试"),
+    // v1.3 洗护美容价目
+    CATEGORY_IN_USE("该服务分类已被价格格子或美容单项引用，不能删除，可改为隐藏");
 
     private final String message;
 

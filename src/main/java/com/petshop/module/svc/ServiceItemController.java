@@ -17,14 +17,17 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ServiceItemController {
 
     private final ServiceItemMapper mapper;
+    private final ServiceCategoryService categoryService;
 
-    public ServiceItemController(ServiceItemMapper mapper) {
+    public ServiceItemController(ServiceItemMapper mapper, ServiceCategoryService categoryService) {
         this.mapper = mapper;
+        this.categoryService = categoryService;
     }
 
     @GetMapping
     public String list(Model model) {
         model.addAttribute("items", mapper.findAll());
+        model.addAttribute("categories", categoryService.findAll());
         return "svc/list";
     }
 
