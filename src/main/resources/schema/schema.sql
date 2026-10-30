@@ -702,6 +702,25 @@ CREATE TABLE IF NOT EXISTS service_category (
 CREATE INDEX IF NOT EXISTS idx_service_category_sort ON service_category(sort_no, id);
 
 -- ============================================================================
+-- 37. service_beauty_item 美容单项（v1.3 洗护美容价目）
+--     价目表之下的独立项目清单；银 / 微 / 积 三个服务开关控制显示渠道与积分参与。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS service_beauty_item (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  name              TEXT    NOT NULL,                  -- 项目名称，如「剪指甲」
+  category_id       INTEGER NOT NULL,                  -- 所属服务分类（不建外键，删除分类前由业务校验引用）
+  retail_price_cent INTEGER NOT NULL DEFAULT 0,        -- 零售价（分）
+  discount_type     TEXT    NOT NULL DEFAULT 'GROUP',  -- 服务折扣：GROUP=会员组折扣 / FULL=全额 / RATE=按折扣率
+  discount_rate     INTEGER NOT NULL DEFAULT 10,       -- 折扣率，十分位整数：10=全额，9=9折，95=9.5折
+  show_cashier      INTEGER NOT NULL DEFAULT 1,        -- 银：收银台显示
+  show_shop         INTEGER NOT NULL DEFAULT 1,        -- 微：网店显示
+  earn_points       INTEGER NOT NULL DEFAULT 0,        -- 积：参与积分
+  sort_no           INTEGER NOT NULL DEFAULT 0,        -- 排序号，小的在前
+  is_active         INTEGER NOT NULL DEFAULT 1         -- 1=启用 0=停用
+);
+CREATE INDEX IF NOT EXISTS idx_service_beauty_item_cat ON service_beauty_item(category_id, sort_no, id);
+
+-- ============================================================================
 -- 35. service_price_row 价目行（v1.3 洗护美容价目）
 --    价目表的行：宠物类型 + 自定义描述，显示为「狗：0-3kg」；肩高/毛长/品种仅作展示标签。
 -- ============================================================================

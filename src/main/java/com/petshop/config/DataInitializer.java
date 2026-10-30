@@ -106,7 +106,38 @@ public class DataInitializer implements ApplicationRunner {
      */
     private void migrateV13() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS schema_version(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
-        // 与 schema.sql 第 35/36 节保持一致：老库在此补建价目行 / 价格格子
+        createBeautyItemIfMissing();
+        createPriceTablesIfMissing();
+        Integer done = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Integer.class);
+        if (done == null || done == 0) {
+            jdbc.update("INSERT INTO schema_version(version, applied_at) VALUES('v1.3', ?)",
+                    java.time.LocalDateTime.now().format(
+                            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            log.info("v1.3 迁移完成：洗护美容价目表结构就绪");
+        }
+    }
+
+    /** v1.3 美容单项表：schema.sql 已建则不动；旧库若缺列则补齐（幂等）。 */
+    private void createBeautyItemIfMissing() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS service_beauty_item ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                + "name TEXT NOT NULL,"
+                + "category_id INTEGER NOT NULL,"
+                + "retail_price_cent INTEGER NOT NULL DEFAULT 0,"
+                + "discount_type TEXT NOT NULL DEFAULT 'GROUP',"
+                + "discount_rate INTEGER NOT NULL DEFAULT 10,"
+                + "show_cashier INTEGER NOT NULL DEFAULT 1,"
+                + "show_shop INTEGER NOT NULL DEFAULT 1,"
+                + "earn_points INTEGER NOT NULL DEFAULT 0,"
+                + "sort_no INTEGER NOT NULL DEFAULT 0,"
+                + "is_active INTEGER NOT NULL DEFAULT 1)");
+        jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_beauty_item_cat "
+                + "ON service_beauty_item(category_id, sort_no, id)");
+    }
+
+    /** v1.3 价目行 / 价格格子：与 schema.sql 第 35/36 节一致，老库在此补建（幂等）。 */
+    private void createPriceTablesIfMissing() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS service_price_row ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, animal TEXT NOT NULL DEFAULT 'DOG', "
                 + "description TEXT NOT NULL, dog_size TEXT, fur_length TEXT, breed_tags TEXT, "
@@ -120,14 +151,6 @@ public class DataInitializer implements ApplicationRunner {
                 + "discount_type TEXT NOT NULL DEFAULT 'FULL', discount_rate REAL NOT NULL DEFAULT 10)");
         jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_service_price_cell ON service_price_cell(row_id, category_id)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_price_cell_category ON service_price_cell(category_id)");
-        Integer done = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Integer.class);
-        if (done == null || done == 0) {
-            jdbc.update("INSERT INTO schema_version(version, applied_at) VALUES('v1.3', ?)",
-                    java.time.LocalDateTime.now().format(
-                            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            log.info("v1.3 迁移完成：洗护美容价目表结构就绪");
-        }
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {
