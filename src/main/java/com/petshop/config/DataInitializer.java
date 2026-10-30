@@ -108,6 +108,9 @@ public class DataInitializer implements ApplicationRunner {
         jdbc.execute("CREATE TABLE IF NOT EXISTS schema_version(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
         createBeautyItemIfMissing();
         createPriceTablesIfMissing();
+        createMemberGroupIfMissing();
+        addColumnIfMissing("customer", "member_group_id", "INTEGER");
+        addColumnIfMissing("bill_item", "line_discount_cent", "INTEGER NOT NULL DEFAULT 0");
         Integer done = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Integer.class);
         if (done == null || done == 0) {
@@ -151,6 +154,14 @@ public class DataInitializer implements ApplicationRunner {
                 + "discount_type TEXT NOT NULL DEFAULT 'FULL', discount_rate REAL NOT NULL DEFAULT 10)");
         jdbc.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_service_price_cell ON service_price_cell(row_id, category_id)");
         jdbc.execute("CREATE INDEX IF NOT EXISTS idx_service_price_cell_category ON service_price_cell(category_id)");
+    }
+
+    /** v1.3 会员组：与 schema.sql 第 38 节一致；「散客组」固定 id=1、10 折，已存在则不覆盖店长改过的折扣率。 */
+    private void createMemberGroupIfMissing() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS member_group ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
+                + "discount_rate INTEGER NOT NULL DEFAULT 10)");
+        jdbc.update("INSERT OR IGNORE INTO member_group(id, name, discount_rate) VALUES (1, '散客组', 10)");
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {

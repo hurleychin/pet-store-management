@@ -11,6 +11,11 @@ public class Customer {
     private String remark;
     private boolean isActive;
     private LocalDateTime createdAt;
+    /** v1.3 会员组 id；为空表示散客组（服务折扣「会员组折扣」按散客组折扣率计价） */
+    private Long memberGroupId;
+    /** 展示字段：会员组名称与折扣率（十分位整数，10=不打折） */
+    private String memberGroupName;
+    private Integer memberGroupRate;
 
     /** 列表页附带：名下宠物数 */
     private Long petCount;
@@ -29,6 +34,12 @@ public class Customer {
     public void setIsActive(boolean active) { isActive = active; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Long getMemberGroupId() { return memberGroupId; }
+    public void setMemberGroupId(Long memberGroupId) { this.memberGroupId = memberGroupId; }
+    public String getMemberGroupName() { return memberGroupName; }
+    public void setMemberGroupName(String memberGroupName) { this.memberGroupName = memberGroupName; }
+    public Integer getMemberGroupRate() { return memberGroupRate; }
+    public void setMemberGroupRate(Integer memberGroupRate) { this.memberGroupRate = memberGroupRate; }
     public Long getPetCount() { return petCount; }
     public void setPetCount(Long petCount) { this.petCount = petCount; }
 }

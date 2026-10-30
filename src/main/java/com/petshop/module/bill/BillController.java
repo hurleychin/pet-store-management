@@ -10,7 +10,6 @@ import com.petshop.module.card.CustomerCard;
 import com.petshop.module.card.CustomerCardMapper;
 import com.petshop.module.card.CardTypeMapper;
 import com.petshop.module.product.ProductMapper;
-import com.petshop.module.svc.ServiceItemMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,22 +33,34 @@ public class BillController {
     private final PetMapper petMapper;
     private final CustomerCardMapper cardMapper;
     private final CardTypeMapper cardTypeMapper;
-    private final ServiceItemMapper serviceItemMapper;
     private final ProductMapper productMapper;
     private final ObjectMapper objectMapper;
     private final com.petshop.module.appointment.AppointmentService appointmentService;
+    private final com.petshop.module.svc.ServicePriceMapper servicePriceMapper;
+    private final com.petshop.module.svc.ServiceBeautyItemMapper serviceBeautyItemMapper;
+    private final com.petshop.module.svc.ServiceCategoryMapper serviceCategoryMapper;
+    private final com.petshop.module.customer.MemberGroupService memberGroupService;
+    private final com.petshop.module.svc.ServicePricingService pricingService;
 
     public BillController(BillService service, CustomerMapper customerMapper, PetMapper petMapper,
                           CustomerCardMapper cardMapper, CardTypeMapper cardTypeMapper,
-                          ServiceItemMapper serviceItemMapper,
                           ProductMapper productMapper, ObjectMapper objectMapper,
-                          com.petshop.module.appointment.AppointmentService appointmentService) {
+                          com.petshop.module.appointment.AppointmentService appointmentService,
+                          com.petshop.module.svc.ServicePriceMapper servicePriceMapper,
+                          com.petshop.module.svc.ServiceBeautyItemMapper serviceBeautyItemMapper,
+                          com.petshop.module.svc.ServiceCategoryMapper serviceCategoryMapper,
+                          com.petshop.module.customer.MemberGroupService memberGroupService,
+                          com.petshop.module.svc.ServicePricingService pricingService) {
+        this.servicePriceMapper = servicePriceMapper;
+        this.serviceBeautyItemMapper = serviceBeautyItemMapper;
+        this.serviceCategoryMapper = serviceCategoryMapper;
+        this.memberGroupService = memberGroupService;
+        this.pricingService = pricingService;
         this.service = service;
         this.customerMapper = customerMapper;
         this.petMapper = petMapper;
         this.cardMapper = cardMapper;
         this.cardTypeMapper = cardTypeMapper;
-        this.serviceItemMapper = serviceItemMapper;
         this.productMapper = productMapper;
         this.objectMapper = objectMapper;
         this.appointmentService = appointmentService;
@@ -125,7 +136,11 @@ public class BillController {
     /** 开单页数据（给 Thymeleaf 与前端 JS 共用） */
     private Map<String, Object> buildData(Customer c) {
         Map<String, Object> data = new HashMap<>();
+        int memberRate = memberGroupService.rateOf(c);
+        Map<Long, Map<Long, com.petshop.module.svc.ServicePriceCell>> priceCells = servicePriceMapper.findCellsByRow();
         data.put("customer", c);
+        data.put("memberGroupName", c.getMemberGroupName() == null ? "散客组" : c.getMemberGroupName());
+        data.put("memberGroupRate", memberRate);
 
         List<Map<String, Object>> pets = new java.util.ArrayList<>();
         for (Pet p : petMapper.findByOwner(c.getId())) {
@@ -143,18 +158,63 @@ public class BillController {
         }
         data.put("pets", pets);
 
-        List<Map<String, Object>> svcs = new java.util.ArrayList<>();
-        for (com.petshop.module.svc.ServiceItem s : serviceItemMapper.findActive()) {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", s.getId());
-            m.put("name", s.getName());
-            m.put("priceSCent", s.getPriceSCent());
-            m.put("priceMCent", s.getPriceMCent());
-            m.put("priceLCent", s.getPriceLCent());
-            m.put("priceXLCent", s.getPriceXLCent());
-            svcs.add(m);
+        // v1.3 服务区两类来源：价目格子（价目行 × 分类）与美容单项（收银台可见、启用、所属分类未隐藏）
+        Map<Long, com.petshop.module.svc.ServiceCategory> catById = new HashMap<>();
+        List<Map<String, Object>> categories = new java.util.ArrayList<>();
+        for (com.petshop.module.svc.ServiceCategory cat : serviceCategoryMapper.findAll()) {
+            catById.put(cat.getId(), cat);
+            if (cat.getIsVisible()) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", cat.getId());
+                m.put("name", cat.getName());
+                m.put("degree", cat.getDegree());
+                categories.add(m);
+            }
         }
-        data.put("services", svcs);
+        data.put("categories", categories);
+
+        List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (com.petshop.module.svc.ServicePriceRow r : servicePriceMapper.findRows()) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", r.getId());
+            m.put("label", ("CAT".equals(r.getAnimal()) ? "猫：" : "狗：") + r.getDescription());
+            Map<String, Map<String, Object>> cells = new HashMap<>();
+            for (Map.Entry<Long, com.petshop.module.svc.ServicePriceCell> e : priceCells.getOrDefault(r.getId(), java.util.Collections.emptyMap()).entrySet()) {
+                com.petshop.module.svc.ServicePriceCell cell = e.getValue();
+                com.petshop.module.svc.ServiceCategory cat = catById.get(e.getKey());
+                if (cat == null || !cat.getIsVisible() || cell.getPriceCent() <= 0) {
+                    continue; // 隐藏分类不可开单；未定价的格子不出现
+                }
+                Map<String, Object> cm = new HashMap<>();
+                cm.put("categoryId", e.getKey());
+                cm.put("priceCent", cell.getPriceCent());
+                cm.put("dealCent", dealPrice(cell.getPriceCent(), cell.getDiscountType(), cell.getDiscountRate(), memberRate));
+                cm.put("dealYuan", com.petshop.common.Money.yuan(dealPrice(cell.getPriceCent(), cell.getDiscountType(), cell.getDiscountRate(), memberRate)));
+                cm.put("discountLabel", discountLabel(cell.getDiscountType(), cell.getDiscountRate()));
+                cells.put(String.valueOf(e.getKey()), cm);
+            }
+            m.put("cells", cells);
+            m.put("categoryIds", String.join(",", cells.keySet()));
+            rows.add(m);
+        }
+        data.put("priceRows", rows);
+
+        List<Map<String, Object>> beautyItems = new java.util.ArrayList<>();
+        for (com.petshop.module.svc.ServiceBeautyItem b : serviceBeautyItemMapper.findAll()) {
+            com.petshop.module.svc.ServiceCategory cat = catById.get(b.getCategoryId());
+            if (!b.getShowCashier() || !b.getIsActive() || cat == null || !cat.getIsVisible()) {
+                continue;
+            }
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", b.getId());
+            m.put("name", b.getName());
+            m.put("categoryName", cat.getName());
+            m.put("priceCent", b.getRetailPriceCent());
+            m.put("dealCent", dealPrice(b.getRetailPriceCent(), b.getDiscountType(), b.getDiscountRate(), memberRate));
+            m.put("discountLabel", discountLabel(b.getDiscountType(), b.getDiscountRate()));
+            beautyItems.add(m);
+        }
+        data.put("beautyItems", beautyItems);
 
         List<Map<String, Object>> prods = new java.util.ArrayList<>();
         for (com.petshop.module.product.Product p : productMapper.findActive()) {
@@ -183,6 +243,24 @@ public class BillController {
         }
         data.put("cards", cards);
         return data;
+    }
+
+    /** 前端预显示用成交价；服务端结账时仍按同一口径重算。 */
+    private int dealPrice(int listPriceCent, String type, int rate, int memberRate) {
+        String t = type == null ? "" : type.trim();
+        int r = "FULL".equals(t) ? 10 : ("RATE".equals(t) ? rate : memberRate);
+        return pricingService.dealPrice(listPriceCent, r);
+    }
+
+    private static String discountLabel(String type, int rate) {
+        String t = type == null ? "" : type.trim();
+        if ("FULL".equals(t)) {
+            return "全额";
+        }
+        if ("RATE".equals(t)) {
+            return (rate % 10 == 0 ? String.valueOf(rate / 10) : java.math.BigDecimal.valueOf(rate, 1).stripTrailingZeros().toPlainString()) + "折";
+        }
+        return "会员组折扣";
     }
 
     private String cardTypeServiceIds(Long cardTypeId) {

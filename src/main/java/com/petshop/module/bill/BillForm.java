@@ -25,6 +25,18 @@ public class BillForm {
         private int qty;
         /** v1.2：本行服务人员，提成依据；为空表示不提成 */
         private Long staffId;
+        /** v1.3 服务行来源：PRICE=价目格子（refId 为价目行，需 categoryId）/ BEAUTY=美容单项（refId 为单项） */
+        private String itemSource;
+        private Long categoryId;
+        /** 手工改价后的成交标价（分）；为空 = 按价目带出 */
+        private Integer unitPriceCent;
+
+        public String getItemSource() { return itemSource; }
+        public void setItemSource(String itemSource) { this.itemSource = itemSource; }
+        public Long getCategoryId() { return categoryId; }
+        public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+        public Integer getUnitPriceCent() { return unitPriceCent; }
+        public void setUnitPriceCent(Integer unitPriceCent) { this.unitPriceCent = unitPriceCent; }
 
         public Long getStaffId() { return staffId; }
         public void setStaffId(Long staffId) { this.staffId = staffId; }

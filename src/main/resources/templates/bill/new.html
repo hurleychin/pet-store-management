@@ -30,14 +30,31 @@
             </div>
 
             <div class="card">
-              <div class="card-head"><span><i data-lucide="scissors"></i> 服务项目（按体型档计价）</span></div>
+              <div class="card-head"><span><i data-lucide="scissors"></i> 服务（按价目表选 / 美容单项）</span>
+                <span class="muted small" style="margin-left:auto"
+                      th:text="'会员组：' + ${data.memberGroupName} + '（' + ${data.memberGroupRate / 10.0} + ' 折）'"></span>
+              </div>
               <div class="card-body">
-                <div class="pick-grid">
-                  <button type="button" class="pick" th:each="s : ${data.services}"
-                          th:onclick="'addService(' + ${s.id} + ')'">
-                    <b th:text="${s.name}"></b>
-                    <span th:text="'S ¥' + ${ui.yuan(s.priceSCent)} + ' · M ¥' + ${ui.yuan(s.priceMCent)} + ' · L ¥' + ${ui.yuan(s.priceLCent)} + ' · XL ¥' + ${ui.yuan(s.priceXLCent)}"></span>
-                  </button>
+                <div class="flex" style="gap:8px;align-items:center;flex-wrap:wrap">
+                  <b class="small">按价目表选</b>
+                  <select id="priceRowSel" onchange="onPriceRowChange()" style="max-width:240px">
+                    <option value="">选择价目行…</option>
+                    <th:block th:each="r : ${data.priceRows}"><option th:value="${r.id}" th:text="${r.label}"
+                            th:attr="'data-price-cells'=${r.categoryIds}"></option></th:block>
+                  </select>
+                  <div class="pick-grid" id="priceCellPick" style="flex:1"></div>
+                </div>
+                <div class="hint mt8" id="priceHint">先选价目行，再点分类格子把服务加入明细</div>
+                <div class="flex" style="gap:8px;align-items:center;margin-top:12px">
+                  <b class="small">美容单项</b>
+                  <div class="pick-grid" style="flex:1">
+                    <button type="button" class="pick" th:each="b : ${data.beautyItems}"
+                            th:onclick="'addBeauty(' + ${b.id} + ')'">
+                      <b th:text="${b.name}"></b>
+                      <span th:text="${b.categoryName} + ' · ¥' + ${ui.yuan(b.priceCent)} + '（' + ${b.discountLabel} + '）'"></span>
+                    </button>
+                    <span class="muted small" th:if="${#lists.isEmpty(data.beautyItems)}">暂无可在收银台售卖的美容单项</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -72,11 +89,13 @@
               <div class="card-body">
                 <div class="sum-row"><span class="muted">明细合计</span><b id="sumSub">¥0.00</b></div>
                 <div class="sum-row"><span class="muted">次卡抵扣</span><b id="sumCard">¥0.00</b></div>
+                <div class="sum-row"><span class="muted">服务折扣（行折扣）</span><b id="sumLineDisc">-¥0.00</b></div>
                 <div class="field mt8">
                   <label>整单折扣（元）</label>
                   <input type="text" id="discountYuan" name="discountYuan" value="0" oninput="recalc()">
-                  <div class="hint">按明细金额占比分摊，尾差归金额最大的一条</div>
+                  <div class="hint">整单优惠，与上面的行折扣分开记录；按行折后金额占比分摊，尾差归金额最大的一条</div>
                 </div>
+                <div class="sum-row"><span class="muted">整单优惠</span><b id="sumBillDisc">-¥0.00</b></div>
                 <div class="sum-row total"><span>应收</span><span id="sumRecv">¥0.00</span></div>
                 <div class="field mt8">
                   <label>收款方式 *</label>
@@ -135,12 +154,16 @@ var lines = [];  // {key, type, refId, name, petId, petName, tier, qty, price, c
 var lineSeq = 0;
 
 function pets() { return DATA.pets || []; }
-function services() { return DATA.services || []; }
 function products() { return DATA.products || []; }
+function priceRows() { return DATA.priceRows || []; }
+function beautyItems() { return DATA.beautyItems || []; }
+function categories() { return DATA.categories || []; }
 function cards() { return DATA.cards || []; }
-function svcById(id) { for (var i = 0; i < services().length; i++) if (services()[i].id === id) return services()[i]; return null; }
 function prodById(id) { for (var i = 0; i < products().length; i++) if (products()[i].id === id) return products()[i]; return null; }
 function petById(id) { for (var i = 0; i < pets().length; i++) if (pets()[i].id === id) return pets()[i]; return null; }
+function rowById(id) { for (var i = 0; i < priceRows().length; i++) if (priceRows()[i].id === id) return priceRows()[i]; return null; }
+function beautyById(id) { for (var i = 0; i < beautyItems().length; i++) if (beautyItems()[i].id === id) return beautyItems()[i]; return null; }
+function catName(id) { var cs = categories(); for (var i = 0; i < cs.length; i++) if (cs[i].id === id) return cs[i].name; return ''; }
 function cardRemain(c) { return c.paidQty - c.usedPaid + c.giftQty - c.usedGift; }
 
 function renderPets() {
@@ -164,33 +187,77 @@ function renderPets() {
     btn.onclick = function () { selectPet(p.id); };
     box.appendChild(btn);
   });
+  if (list.filter(function (p) { return p.isActive; }).length === 1) {
+    selectPet(list.filter(function (p) { return p.isActive; })[0].id);
+  }
 }
 
 function selectPet(id) {
   document.querySelectorAll('[data-pet]').forEach(function (el) { el.style.borderColor = ''; });
-  document.querySelector('[data-pet="' + id + '"]').style.borderColor = 'var(--primary)';
+  var el = document.querySelector('[data-pet="' + id + '"]');
+  if (el) el.style.borderColor = 'var(--primary)';
   window._selPet = id;
   var p = petById(id);
-  document.getElementById('petHint').textContent = p.weightG
-    ? '已选 ' + p.name + '：体型档自动匹配（可按行修改）'
-    : '已选 ' + p.name + '：未录体重，按「小型」计价';
-  // 服务行默认宠物联动
+  document.getElementById('petHint').textContent = '已选 ' + p.name + '：服务行默认记在它名下';
   lines.forEach(function (l) {
     if (l.type === 'SERVICE' && !l.petId) { l.petId = id; }
   });
   render();
 }
 
-function addService(id) {
-  var s = svcById(id);
-  if (!s) return;
-  if (pets().length === 0) { alert('该客户还没有宠物，含服务项必须选择宠物'); return; }
+/* 价目表选：先选价目行，再点该行的分类格子 */
+function onPriceRowChange() {
+  var sel = document.getElementById('priceRowSel');
+  var row = rowById(parseInt(sel.value, 10));
+  var box = document.getElementById('priceCellPick');
+  box.innerHTML = '';
+  var hint = document.getElementById('priceHint');
+  if (!row) { hint.textContent = '先选价目行，再点分类格子把服务加入明细'; return; }
+  var any = false;
+  categories().forEach(function (c) {
+    var cell = row.cells && row.cells[String(c.id)];
+    if (!cell) return; // 该分类下未定价
+    any = true;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pick';
+    btn.innerHTML = '<b>' + escHtml(c.name) + '</b><span>¥' + fmtYuan(cell.priceCent) +
+      '（' + escHtml(cell.discountLabel) + ' → ¥' + fmtYuan(cell.dealCent) + '）</span>';
+    btn.onclick = function () { addPrice(row.id, c.id); };
+    box.appendChild(btn);
+  });
+  hint.textContent = any ? row.label + '：点分类格子加入明细' : row.label + ' 下还没有定价的分类';
+}
+
+function addPrice(rowId, categoryId) {
+  if (!requirePet()) return;
+  var row = rowById(rowId);
+  var cell = row.cells[String(categoryId)];
   var petId = window._selPet || pets()[0].id;
-  var pet = petById(petId);
-  var tier = tierOf(pet.weightG);
-  lines.push({ key: ++lineSeq, type: 'SERVICE', refId: s.id, name: s.name, petId: petId,
-               tier: tier, qty: 1, price: priceOf(s, tier), cardId: null });
+  lines.push({ key: ++lineSeq, type: 'SERVICE', source: 'PRICE', refId: row.id,
+               refLabel: row.label, categoryId: categoryId, categoryIds: row.categoryIds || [],
+               name: row.label + ' · ' + catName(categoryId), petId: petId,
+               listPrice: cell.priceCent, price: cell.dealCent, deal: cell.dealCent,
+               manual: false, cardId: null });
   render();
+}
+
+function addBeauty(id) {
+  var b = beautyById(id);
+  if (!b) return;
+  if (!requirePet()) return;
+  var petId = window._selPet || pets()[0].id;
+  lines.push({ key: ++lineSeq, type: 'SERVICE', source: 'BEAUTY', refId: b.id,
+               categoryId: null, refIds: [b.id],
+               name: b.name + (b.categoryName ? ' · ' + b.categoryName : ''), petId: petId,
+               listPrice: b.priceCent, price: b.dealCent, deal: b.dealCent,
+               manual: false, cardId: null });
+  render();
+}
+
+function requirePet() {
+  if (pets().length === 0) { alert('该客户还没有宠物，含服务项必须选择宠物'); return false; }
+  return true;
 }
 
 function addProduct(id) {
@@ -201,34 +268,20 @@ function addProduct(id) {
     if (lines[i].type === 'PRODUCT' && lines[i].refId === id) { lines[i].qty++; render(); return; }
   }
   lines.push({ key: ++lineSeq, type: 'PRODUCT', refId: id, name: p.name, petId: null,
-               tier: null, qty: 1, price: p.salePriceCent, cardId: null });
+               qty: 1, price: p.salePriceCent, cardId: null });
   render();
 }
 
-function tierOf(weightG) {
-  var w = weightG || 0;
-  if (w <= 0) return 'S';
-  if (w < 10000) return 'S';
-  if (w < 25000) return 'M';
-  if (w < 40000) return 'L';
-  return 'XL';
-}
-function priceOf(s, tier) {
-  if (tier === 'M') return s.priceMCent;
-  if (tier === 'L') return s.priceLCent;
-  if (tier === 'XL') return s.priceXLCent;
-  return s.priceSCent;
-}
-
-function chgTier(key, tier) {
+function chgPrice(key, yuan) {
   var l = find(key); if (!l) return;
-  var s = svcById(l.refId);
-  l.tier = tier;
-  l.price = priceOf(s, tier);
-  // 换档后校验卡适用性
-  if (l.cardId) l.cardId = null;
+  var cent = toCent(yuan);
+  if (cent > l.listPrice) { alert('手工改价不能高于价目价格 ¥' + fmtYuan(l.listPrice) + '，调价请改价目表'); cent = l.deal; }
+  if (cent < 0) cent = 0;
+  l.manual = cent !== l.deal;
+  l.price = cent;
   render();
 }
+function resetPrice(key) { var l = find(key); if (!l) return; l.price = l.deal; l.manual = false; render(); }
 function chgQty(key, qty) { var l = find(key); l.qty = Math.max(1, parseInt(qty || '1', 10)); if (l.cardId && l.qty !== 1) { l.cardId = null; } render(); }
 function chgPet(key, petId) { var l = find(key); l.petId = parseInt(petId, 10) || null; render(); }
 function chgCard(key, cardId) { var l = find(key); l.cardId = cardId ? parseInt(cardId, 10) : null; render(); }
@@ -240,18 +293,22 @@ function find(key) {
 }
 
 function amountOf(l) { return l.price * l.qty; }
+function lineDiscountOf(l) { return (l.listPrice - l.price) * l.qty; }
 
 function recalc() {
-  var sub = 0, cardAmt = 0;
+  var sub = 0, cardAmt = 0, lineDisc = 0;
   lines.forEach(function (l) {
-    if (l.cardId) { cardAmt += amountOf(l); } else { sub += amountOf(l); }
+    if (l.cardId) { cardAmt += amountOf(l); }
+    else { sub += amountOf(l); lineDisc += lineDiscountOf(l); }
   });
   var disc = toCent(document.getElementById('discountYuan').value);
   var err = '';
-  if (disc > sub) { err = '折扣金额不能大于商品总额（不含次卡抵扣部分）'; disc = sub; }
+  if (disc > sub) { err = '整单折扣不能大于明细金额（不含次卡抵扣部分）'; disc = sub; }
   var recv = sub - disc;
   document.getElementById('sumSub').textContent = '¥' + fmtYuan(sub + cardAmt);
   document.getElementById('sumCard').textContent = '¥' + fmtYuan(cardAmt);
+  document.getElementById('sumLineDisc').textContent = '-¥' + fmtYuan(lineDisc);
+  document.getElementById('sumBillDisc').textContent = '-¥' + fmtYuan(disc);
   document.getElementById('sumRecv').textContent = '¥' + fmtYuan(recv);
   document.getElementById('formErr').textContent = err;
   return { sub: sub, cardAmt: cardAmt, recv: recv };
@@ -267,9 +324,11 @@ function render() {
     var div = document.createElement('div');
     div.className = 'pos-line';
     div.setAttribute('data-key', l.key);
+    var discTxt = l.type === 'SERVICE' && lineDiscountOf(l) > 0
+      ? ' · 行折扣 ¥' + fmtYuan(lineDiscountOf(l)) : '';
     var left = '<div class="nm">' + escHtml(l.name) + (l.type === 'SERVICE' ? ' <span class="badge primary">服务</span>' : ' <span class="badge muted">商品</span>') +
-      '<div class="meta">¥' + fmtYuan(l.price) + ' × ' + l.qty + '</div></div>';
-    var petSel = '';
+      '<div class="meta">¥' + fmtYuan(l.price) + ' × ' + l.qty + discTxt + '</div></div>';
+    var petSel;
     if (l.type === 'SERVICE') {
       var opts = pets().filter(function (p) { return p.isActive; }).map(function (p) {
         return '<option value="' + p.id + '"' + (l.petId === p.id ? ' selected' : '') + '>' + escHtml(p.name) + '</option>';
@@ -278,21 +337,19 @@ function render() {
     } else {
       petSel = '<span class="muted small">—</span>';
     }
-    var tierSel = '';
+    var priceCell;
     if (l.type === 'SERVICE') {
-      var s = svcById(l.refId);
-      tierSel = '<select onchange="chgTier(' + l.key + ', this.value)">' +
-        ['S', 'M', 'L', 'XL'].map(function (t) {
-          var nm = { S: '小', M: '中', L: '大', XL: '巨' }[t];
-          return '<option value="' + t + '"' + (l.tier === t ? ' selected' : '') + '>' + nm + ' ¥' + fmtYuan(priceOf(s, t)) + '</option>';
-        }).join('') + '</select>';
-    } else { tierSel = '<span></span>'; }
-    // 卡抵扣下拉：仅服务行、客户有可用卡时显示
-    var cardSel = '';
+      priceCell = '<div><input type="number" min="0" step="0.01" value="' + fmtYuan(l.price) + '" title="成交价（可手改）" onchange="chgPrice(' + l.key + ', this.value)"' +
+        (l.cardId ? ' disabled' : '') + '>' +
+        (l.manual ? '<a href="javascript:void(0)" class="small" onclick="resetPrice(' + l.key + ')">恢复价目价</a>' : '') + '</div>';
+    } else { priceCell = '<span></span>'; }
+    var cardSel;
     if (l.type === 'SERVICE' && cards().length) {
       var usable = cards().filter(function (c) {
         if (!c.serviceIds) return true; // 不限服务
-        return String(c.serviceIds).split(',').indexOf(String(l.refId)) >= 0;
+        var ids = String(c.serviceIds).split(',');
+        var refs = l.refIds || [l.refId];
+        return refs.some(function (id) { return ids.indexOf(String(id)) >= 0; });
       });
       if (usable.length) {
         var copts = '<option value="">收现金</option>' + usable.map(function (c) {
@@ -303,12 +360,12 @@ function render() {
     } else { cardSel = '<span></span>'; }
     div.innerHTML = left +
       '<div>' + petSel + '</div>' +
-      '<div>' + tierSel + '</div>' +
+      '<div>' + priceCell + '</div>' +
       '<div>' + cardSel + '</div>' +
       '<div style="display:flex;gap:4px"><input type="number" min="1" value="' + l.qty + '" style="width:56px" onchange="chgQty(' + l.key + ', this.value)">' +
       '<button type="button" class="pos-del" onclick="delLine(' + l.key + ')"><i data-lucide="x"></i></button></div>';
-    // 布局为 5 列：名称/宠物/档位/卡/数量 —— 合并最后两块
-    div.style.gridTemplateColumns = '1fr 100px 130px 150px 110px';
+    // 布局为 5 列：名称/宠物/成交价/卡/数量
+    div.style.gridTemplateColumns = '1fr 100px 120px 150px 110px';
     box.appendChild(div);
   });
   recalc();
@@ -322,19 +379,20 @@ function submitForm(f) {
   // 校验
   var err = document.getElementById('formErr');
   if (!lines.length) { err.textContent = '明细不能为空：请先点选服务或商品'; return false; }
-  var hasService = false;
   for (var i = 0; i < lines.length; i++) {
-    if (lines[i].type === 'SERVICE') {
-      hasService = true;
-      if (!lines[i].petId) { err.textContent = '含服务项目时必须选择宠物'; return false; }
-    }
+    if (lines[i].type === 'SERVICE' && !lines[i].petId) { err.textContent = '含服务项目时必须选择宠物'; return false; }
   }
   var r = recalc();
   if (err.textContent) return false;
-  // 组装 itemsJson
+  // 组装 itemsJson：服务行带来源与分类，手改价时带 unitPriceCent（服务端会重算并校验）
   var items = lines.map(function (l) {
-    return { itemType: l.type, refId: l.refId, petId: l.petId, sizeTier: l.tier,
-             cardId: l.cardId, qty: l.qty };
+    var it = { itemType: l.type, refId: l.refId, petId: l.petId, cardId: l.cardId, qty: l.qty };
+    if (l.type === 'SERVICE') {
+      it.itemSource = l.source;
+      it.categoryId = l.categoryId;
+      it.unitPriceCent = l.price;
+    }
+    return it;
   });
   document.getElementById('itemsJson').value = JSON.stringify(items);
   var btn = document.getElementById('submitBtn');
@@ -352,7 +410,7 @@ render();
   var pid = parseInt(document.getElementById('apptPetId').value, 10);
   if (sid && pid) {
     selectPet(pid);
-    addService(sid);
+    if (beautyById(sid)) { addBeauty(sid); } else { alert('预约服务不是美容单项，请手动选择价目格子'); }
     if (document.getElementById('formErr')) {
       document.getElementById('formErr').textContent = '已带入预约服务，请核对明细后结账';
       document.getElementById('formErr').style.color = 'var(--primary)';

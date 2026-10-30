@@ -11,23 +11,34 @@
         <result property="isActive" column="is_active"/>
         <result property="createdAt" column="created_at"/>
         <result property="petCount" column="pet_count"/>
+        <result property="memberGroupId" column="member_group_id"/>
+        <result property="memberGroupName" column="member_group_name"/>
+        <result property="memberGroupRate" column="member_group_rate"/>
     </resultMap>
 
     <sql id="cols">
         c.id, c.name, c.phone, c.source, c.remark, c.is_active, c.created_at,
+        c.member_group_id,
+        COALESCE(g.name, '散客组') AS member_group_name,
+        COALESCE(g.discount_rate, 10) AS member_group_rate,
         (SELECT COUNT(*) FROM pet p WHERE p.owner_id = c.id AND p.is_active = 1) AS pet_count
     </sql>
 
     <select id="findById" resultMap="custMap">
-        SELECT <include refid="cols"/> FROM customer c WHERE c.id = #{id}
+        SELECT <include refid="cols"/> FROM customer c
+        LEFT JOIN member_group g ON g.id = c.member_group_id
+        WHERE c.id = #{id}
     </select>
 
     <select id="findByPhone" resultMap="custMap">
-        SELECT <include refid="cols"/> FROM customer c WHERE c.phone = #{phone}
+        SELECT <include refid="cols"/> FROM customer c
+        LEFT JOIN member_group g ON g.id = c.member_group_id
+        WHERE c.phone = #{phone}
     </select>
 
     <select id="search" resultMap="custMap">
         SELECT <include refid="cols"/> FROM customer c
+        LEFT JOIN member_group g ON g.id = c.member_group_id
         <where>
             <if test="!includeInactive"> AND c.is_active = 1 </if>
             <if test="keyword != null and keyword != ''">
@@ -49,16 +60,19 @@
     </select>
 
     <select id="listActive" resultMap="custMap">
-        SELECT <include refid="cols"/> FROM customer c WHERE c.is_active = 1 ORDER BY c.id DESC
+        SELECT <include refid="cols"/> FROM customer c
+        LEFT JOIN member_group g ON g.id = c.member_group_id
+        WHERE c.is_active = 1 ORDER BY c.id DESC
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO customer(name, phone, source, remark, is_active, created_at)
-        VALUES (#{name}, #{phone}, #{source}, #{remark}, 1, #{createdAt})
+        INSERT INTO customer(name, phone, source, remark, is_active, created_at, member_group_id)
+        VALUES (#{name}, #{phone}, #{source}, #{remark}, 1, #{createdAt}, #{memberGroupId})
     </insert>
 
     <update id="update">
-        UPDATE customer SET name = #{name}, phone = #{phone}, source = #{source}, remark = #{remark}
+        UPDATE customer SET name = #{name}, phone = #{phone}, source = #{source}, remark = #{remark},
+               member_group_id = #{memberGroupId}
         WHERE id = #{id}
     </update>
 

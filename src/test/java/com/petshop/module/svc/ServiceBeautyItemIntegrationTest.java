@@ -61,6 +61,9 @@ class ServiceBeautyItemIntegrationTest {
     @AfterEach
     void cleanup() {
         jdbc.update("DELETE FROM service_beauty_item WHERE name LIKE ?", PREFIX + "%");
+        jdbc.update("DELETE FROM service_price_cell WHERE row_id IN "
+                + "(SELECT id FROM service_price_row WHERE description LIKE ?)", PREFIX + "%");
+        jdbc.update("DELETE FROM service_price_row WHERE description LIKE ?", PREFIX + "%");
         jdbc.update("DELETE FROM service_category WHERE name LIKE ?", PREFIX + "%");
     }
 
@@ -373,5 +376,133 @@ class ServiceBeautyItemIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("errMsg", "所选服务分类不存在或已隐藏，请重新选择"));
         assertEquals(0, count(PREFIX + "挂隐藏分类"));
+    }
+
+    // ---------------------------------------------------------------- v1.3 会员组 / 客户表单 / 迁移（#6）
+
+    @Test
+    void customerFormLetsAdminPickExistingMemberGroup() throws Exception {
+        MockHttpSession admin = admin();
+        long groupId = jdbc.queryForObject("INSERT INTO member_group(name, discount_rate) "
+                + "VALUES(?, 8) RETURNING id", Long.class, PREFIX + "VIP组");
+        String form;
+        try {
+            form = mockMvc.perform(get("/customers/new").session(admin))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+            assertTrue(form.contains("name=\"memberGroupId\""), "客户表单应有会员组下拉");
+            assertTrue(form.contains(PREFIX + "VIP组"), "下拉应列出已有会员组");
+            assertTrue(form.contains("散客组"), "下拉应有散客组（不设会员组）");
+
+            mockMvc.perform(post("/customers/save").session(admin)
+                            .param("name", PREFIX + "会员客户").param("phone", "13700001234")
+                            .param("memberGroupId", String.valueOf(groupId)))
+                    .andExpect(status().is3xxRedirection());
+            assertEquals(groupId, jdbc.queryForObject(
+                    "SELECT member_group_id FROM customer WHERE phone = '13700001234'", Long.class));
+
+            // 会员组不存在时拒绝保存，不落半截数据
+            mockMvc.perform(post("/customers/save").session(admin)
+                            .param("name", PREFIX + "错组客户").param("phone", "13700001235")
+                            .param("memberGroupId", "99999999"))
+                    .andExpect(flash().attribute("errMsg", "会员组不存在，请刷新后重新选择"));
+            assertEquals(0L, jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM customer WHERE phone = '13700001235'", Long.class));
+        } finally {
+            jdbc.update("DELETE FROM customer WHERE phone IN ('13700001234','13700001235')");
+            jdbc.update("DELETE FROM member_group WHERE id = ?", groupId);
+        }
+    }
+
+    /** 模拟老库时用 fresh=true，避免 MyBatis 的本地缓存返回替换前的表结构结果。 */
+    private boolean tableExists(String table) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
+                Integer.class, table) > 0;
+    }
+
+    private long insertRow(String description) throws Exception {
+        mockMvc.perform(post("/services/price-rows/save").session(admin())
+                        .param("animal", "DOG").param("description", description).param("sortNo", "0"))
+                .andExpect(redirectedUrl("/services"));
+        return jdbc.queryForObject("SELECT id FROM service_price_row WHERE description = ?", Long.class, description);
+    }
+
+    private boolean columnMissing(String table, String column) {
+        for (java.util.Map<String, Object> col : jdbc.queryForList("PRAGMA table_info(" + table + ")")) {
+            if (column.equals(col.get("name"))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Test
+    void migrationAddsMemberGroupAndLineDiscountColumnsIdempotently() throws Exception {
+        // 模拟 v1.3 之前的老库：缺会员组表、customer.member_group_id、bill_item.line_discount_cent。
+        // 先把本用例依赖的价目数据挂到一个测试分类下，替换主表后找回。
+        long cat = jdbc.queryForObject("INSERT INTO service_category(name, degree) VALUES(?, 'SHOWER') RETURNING id",
+                Long.class, PREFIX + "迁移分类");
+        long row = insertRow(PREFIX + "迁移行");
+        int cellsBefore = jdbc.queryForObject("SELECT COUNT(*) FROM service_price_cell", Integer.class) + 1;
+        jdbc.update("INSERT INTO service_price_cell(row_id, category_id, price_cent) VALUES(?, ?, 1000)", row, cat);
+        try {
+        jdbc.execute("DROP TABLE IF EXISTS member_group");
+        jdbc.execute("DROP TABLE IF EXISTS customer__old");
+        jdbc.execute("CREATE TABLE customer__old AS SELECT id, name, phone, is_active, created_at FROM customer");
+        jdbc.execute("DROP TABLE customer");
+        jdbc.execute("CREATE TABLE customer (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
+                + "phone TEXT NOT NULL, source TEXT, remark TEXT, is_active INTEGER NOT NULL DEFAULT 1, "
+                + "created_at TEXT NOT NULL)");
+        jdbc.execute("INSERT INTO customer(id, name, phone, is_active, created_at) "
+                + "SELECT id, name, phone, is_active, created_at FROM customer__old");
+        jdbc.execute("DROP TABLE customer__old");
+        jdbc.execute("ALTER TABLE service_price_cell RENAME TO service_price_cell__old");
+        jdbc.execute("DROP TABLE IF EXISTS service_price_cell");
+        jdbc.execute("DROP TABLE IF EXISTS bill_item__old");
+        jdbc.execute("CREATE TABLE bill_item__old AS SELECT * FROM bill_item");
+        jdbc.execute("DROP TABLE bill_item");
+        jdbc.execute("CREATE TABLE bill_item (id INTEGER PRIMARY KEY AUTOINCREMENT, bill_id INTEGER NOT NULL, "
+                + "item_type TEXT NOT NULL, ref_id INTEGER NOT NULL, name_snapshot TEXT NOT NULL, size_tier TEXT, "
+                + "pet_id INTEGER, qty INTEGER NOT NULL DEFAULT 1, unit_price_cent INTEGER NOT NULL DEFAULT 0, "
+                + "amount_cent INTEGER NOT NULL DEFAULT 0, discount_cent INTEGER NOT NULL DEFAULT 0, "
+                + "paid_by_card INTEGER NOT NULL DEFAULT 0, card_id INTEGER, sort_no INTEGER NOT NULL DEFAULT 0)");
+        // 只保留 v1.3 之前的公共列，模拟老库
+        jdbc.execute("INSERT INTO bill_item(id, bill_id, item_type, ref_id, name_snapshot, size_tier, pet_id, qty, "
+                + "unit_price_cent, amount_cent, discount_cent, paid_by_card, card_id, sort_no) "
+                + "SELECT id, bill_id, item_type, ref_id, name_snapshot, size_tier, pet_id, qty, "
+                + "unit_price_cent, amount_cent, discount_cent, paid_by_card, card_id, sort_no FROM bill_item__old");
+        jdbc.execute("DROP TABLE bill_item__old");
+        } finally {
+            if (columnMissing("customer", "member_group_id")) {
+                jdbc.execute("ALTER TABLE customer ADD COLUMN member_group_id INTEGER");
+            }
+            if (columnMissing("bill_item", "line_discount_cent")) {
+                jdbc.execute("ALTER TABLE bill_item ADD COLUMN line_discount_cent INTEGER NOT NULL DEFAULT 0");
+            }
+            jdbc.execute("CREATE TABLE IF NOT EXISTS member_group (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "name TEXT NOT NULL, discount_rate INTEGER NOT NULL DEFAULT 10)");
+            jdbc.update("INSERT OR IGNORE INTO member_group(id, name, discount_rate) VALUES (1, '散客组', 10)");
+            if (tableExists("service_price_cell__old")) {
+                jdbc.execute("DROP TABLE IF EXISTS service_price_cell");
+                jdbc.execute("ALTER TABLE service_price_cell__old RENAME TO service_price_cell");
+                assertEquals(cellsBefore, jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM service_price_cell", Integer.class), "迁移不应改动既有格子");
+            }
+            jdbc.update("DELETE FROM service_price_cell WHERE category_id = ?", cat);
+            jdbc.update("DELETE FROM service_price_row WHERE id = ?", row);
+            jdbc.update("DELETE FROM service_category WHERE id = ?", cat);
+        }
+
+        dataInitializer.run(null);
+        dataInitializer.run(null);
+
+        assertEquals(10, jdbc.queryForObject(
+                "SELECT discount_rate FROM member_group WHERE name = '散客组'", Integer.class), "预置散客组 10 折");
+        assertEquals(1L, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM member_group WHERE name = '散客组'", Long.class), "重复迁移不重复插入散客组");
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM customer WHERE member_group_id IS NOT NULL", Long.class), "老客户默认散客组");
+        assertEquals("0", jdbc.queryForObject(
+                "SELECT IFNULL(MAX(line_discount_cent), '0') FROM bill_item", String.class), "老明细行折扣为 0");
     }
 }

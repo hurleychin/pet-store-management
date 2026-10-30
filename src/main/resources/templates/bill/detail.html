@@ -58,7 +58,7 @@
 
           <th:block th:if="${bill.billType == 'SALE'}">
             <table class="tbl mt16">
-              <thead><tr><th>项目</th><th>宠物</th><th>体型</th><th class="num">数量</th><th class="num">单价</th><th class="num">优惠</th><th class="num">金额</th><th>抵扣卡</th></tr></thead>
+              <thead><tr><th>项目</th><th>宠物</th><th>体型</th><th class="num">数量</th><th class="num">成交单价</th><th class="num">行折扣</th><th class="num">整单优惠</th><th class="num">金额</th><th>抵扣卡</th></tr></thead>
               <tbody>
                 <tr th:each="i : ${bill.items}">
                   <td><span th:text="${i.nameSnapshot}"></span>
@@ -68,6 +68,7 @@
                   <td th:text="${i.sizeTier != null} ? ${ui.tier(i.sizeTier)} : '—'"></td>
                   <td class="num" th:text="${i.qty}"></td>
                   <td class="num" th:text="${ui.money(i.unitPriceCent)}"></td>
+                  <td class="num" data-line-discount th:text="${i.lineDiscountCent > 0} ? ${ui.money(i.lineDiscountCent)} : '—'"></td>
                   <td class="num" th:text="${i.discountCent > 0} ? ${ui.money(i.discountCent)} : '—'"></td>
                   <td class="num"><b th:text="${ui.money(i.amountCent)}"></b></td>
                   <td><span th:if="${i.paidByCard}" class="badge warn" th:text="${i.cardNo} + ' 抵扣'"></span></td>
@@ -75,9 +76,11 @@
               </tbody>
             </table>
             <div style="max-width:320px;margin-left:auto" class="mt16">
-              <div class="sum-row"><span class="muted">明细合计</span><span th:text="${ui.money(bill.totalCent)}"></span></div>
-              <div class="sum-row"><span class="muted">整单优惠</span><span th:text="'-' + ${ui.money(bill.discountCent)}"></span></div>
-              <div class="sum-row total"><span>实收</span><span th:text="${ui.money(bill.receivedCent)}"></span></div>
+              <div class="sum-row"><span class="muted">明细合计（标价）</span><span th:text="${ui.money(bill.totalCent)}"></span></div>
+              <div class="sum-row"><span class="muted">服务折扣（行折扣）</span><span data-line-discount-total
+                    th:text="'-' + ${ui.money(#aggregates.sum(bill.items.![lineDiscountCent]))}"></span></div>
+              <div class="sum-row"><span class="muted">整单优惠</span><span data-sum-discount th:text="'-' + ${ui.money(bill.discountCent)}"></span></div>
+              <div class="sum-row total"><span>实收</span><span data-sum-received th:text="${ui.money(bill.receivedCent)}"></span></div>
             </div>
           </th:block>
         </div>

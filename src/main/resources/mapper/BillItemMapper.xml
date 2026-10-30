@@ -14,6 +14,7 @@
         <result property="unitPriceCent" column="unit_price_cent"/>
         <result property="amountCent" column="amount_cent"/>
         <result property="discountCent" column="discount_cent"/>
+        <result property="lineDiscountCent" column="line_discount_cent"/>
         <result property="paidByCard" column="paid_by_card"/>
         <result property="cardId" column="card_id"/>
         <result property="sortNo" column="sort_no"/>
@@ -46,9 +47,9 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO bill_item(bill_id, item_type, ref_id, name_snapshot, size_tier, pet_id, qty,
                               unit_price_cent, amount_cent, discount_cent, paid_by_card, card_id,
-                              sort_no, staff_id, batch_id)
+                              sort_no, staff_id, batch_id, line_discount_cent)
         VALUES (#{billId}, #{itemType}, #{refId}, #{nameSnapshot}, #{sizeTier}, #{petId}, #{qty},
                 #{unitPriceCent}, #{amountCent}, #{discountCent}, #{paidByCard}, #{cardId},
-                #{sortNo}, #{staffId}, #{batchId})
+                #{sortNo}, #{staffId}, #{batchId}, #{lineDiscountCent})
     </insert>
 </mapper>
