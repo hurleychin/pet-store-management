@@ -30,15 +30,18 @@ public class AppointmentService {
     private final BoardingOrderMapper boardingOrderMapper;
     private final ConfigService configService;
     private final com.petshop.module.svc.ServiceBeautyItemMapper beautyItemMapper;
+    private final com.petshop.module.svc.ServiceCategoryMapper categoryMapper;
 
     public AppointmentService(AppointmentMapper mapper, PetMapper petMapper,
                               BoardingOrderMapper boardingOrderMapper, ConfigService configService,
-                              com.petshop.module.svc.ServiceBeautyItemMapper beautyItemMapper) {
+                              com.petshop.module.svc.ServiceBeautyItemMapper beautyItemMapper,
+                              com.petshop.module.svc.ServiceCategoryMapper categoryMapper) {
         this.mapper = mapper;
         this.petMapper = petMapper;
         this.boardingOrderMapper = boardingOrderMapper;
         this.configService = configService;
         this.beautyItemMapper = beautyItemMapper;
+        this.categoryMapper = categoryMapper;
     }
 
     public Appointment detail(Long id) {
@@ -85,6 +88,13 @@ public class AppointmentService {
         com.petshop.module.svc.ServiceBeautyItem item = beautyItemMapper.findById(serviceId);
         if (item == null || !item.getIsActive()) {
             throw new BizException(ErrorCode.PARAM_INVALID, "美容单项不存在或已停用");
+        }
+        // 与开单一致：隐藏分类下的美容单项不可预约
+        com.petshop.module.svc.ServiceCategory category =
+                item.getCategoryId() == null ? null : categoryMapper.findById(item.getCategoryId());
+        if (category != null && !category.getIsVisible()) {
+            throw new BizException(ErrorCode.PARAM_INVALID,
+                    "美容单项「" + item.getName() + "」所属分类已隐藏，不能预约");
         }
         Appointment a = new Appointment();
         a.setCustomerId(customerId);

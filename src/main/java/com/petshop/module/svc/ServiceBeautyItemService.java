@@ -217,21 +217,12 @@ public class ServiceBeautyItemService {
         if (kind == DiscountKind.GROUP) {
             return 10;
         }
-        String s = raw == null ? "" : raw.trim();
-        if (s.isEmpty()) {
+        if (raw == null || raw.trim().isEmpty()) {
             throw new BizException(ErrorCode.PARAM_INVALID, "请填写折扣率，例如 9 表示 9 折");
         }
-        java.math.BigDecimal d;
-        try {
-            d = new java.math.BigDecimal(s);
-        } catch (NumberFormatException e) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "折扣率格式不正确，例如 9 表示 9 折");
-        }
-        java.math.BigDecimal tenths = d.multiply(java.math.BigDecimal.TEN).stripTrailingZeros();
-        if (d.signum() <= 0 || d.compareTo(java.math.BigDecimal.TEN) > 0 || tenths.scale() > 0) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "折扣率需大于 0 且不超过 10，最多一位小数");
-        }
-        return tenths.intValueExact();
+        return DiscountKind.parseTenths(raw,
+                "折扣率格式不正确，例如 9 表示 9 折",
+                "折扣率需大于 0 且不超过 10，最多一位小数");
     }
 
     private int price(String yuan) {

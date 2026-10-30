@@ -18,7 +18,7 @@
         <td><b th:text="${i.name}"></b></td>
         <td th:text="${i.categoryName} ?: '—'"></td>
         <td class="num" th:text="${ui.yuan(i.retailPriceCent)}"></td>
-        <td th:text="${ui.discount(i.discountType)} + (${i.discountType == 'RATE'} ? '（' + ${ui.yuan(i.discountRate)} + ' 折）' : '')"></td>
+        <td th:text="${ui.discount(i.discountType, i.discountRate)}"></td>
         <td class="center"><span class="badge switch" th:classappend="${i.showCashier} ? 'ok' : 'muted'" th:attr="data-on=${i.showCashier}" th:text="${i.showCashier} ? '开' : '关'"></span></td>
         <td class="center"><span class="badge switch" th:classappend="${i.showShop} ? 'ok' : 'muted'" th:attr="data-on=${i.showShop}" th:text="${i.showShop} ? '开' : '关'"></span></td>
         <td class="center"><span class="badge switch" th:classappend="${i.earnPoints} ? 'ok' : 'muted'" th:attr="data-on=${i.earnPoints}" th:text="${i.earnPoints} ? '开' : '关'"></span></td>
@@ -51,7 +51,7 @@
                         <option value="RATE" th:selected="${i.discountType == 'RATE'}">按折扣率</option>
                       </select>
                       <input type="number" name="discountRate" step="0.1" min="0.1" max="10" class="bi-rate"
-                             th:value="${i.discountType == 'RATE'} ? ${ui.yuan(i.discountRate)} : ''"
+                             th:value="${i.discountType == 'RATE'} ? ${ui.discountRate(i.discountRate)} : ''"
                              th:style="${i.discountType == 'RATE'} ? '' : 'display:none'">
                       <span class="small muted bi-rate" th:style="${i.discountType == 'RATE'} ? '' : 'display:none'">折</span>
                     </div>

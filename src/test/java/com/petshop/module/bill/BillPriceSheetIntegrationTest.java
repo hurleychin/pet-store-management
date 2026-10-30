@@ -60,8 +60,10 @@ class BillPriceSheetIntegrationTest {
     private long rowDog;      // 价目行 0-3kg
     private long customer;    // 无会员组（散客组）
     private long member;      // 会员组 8 折
+    private long member9;     // 会员组 9 折（手改价上限用例）
     private long pet;         // 散客的狗
     private long memberPet;   // 会员的狗
+    private long member9Pet;  // 九折会员的狗
 
     @BeforeEach
     void setUp() {
@@ -85,8 +87,13 @@ class BillPriceSheetIntegrationTest {
                 + "VALUES(?, '13911110001', 1, ?) RETURNING id", Long.class, P + "散客", ts);
         member = jdbc.queryForObject("INSERT INTO customer(name, phone, is_active, created_at, member_group_id) "
                 + "VALUES(?, '13911110002', 1, ?, ?) RETURNING id", Long.class, P + "会员", ts, vipGroup);
+        Long nineGroup = jdbc.queryForObject("INSERT INTO member_group(name, discount_rate) "
+                + "VALUES(?, 9) RETURNING id", Long.class, P + "九折会员");
+        member9 = jdbc.queryForObject("INSERT INTO customer(name, phone, is_active, created_at, member_group_id) "
+                + "VALUES(?, '13911110003', 1, ?, ?) RETURNING id", Long.class, P + "九折会员", ts, nineGroup);
         pet = pet(customer);
         memberPet = pet(member);
+        member9Pet = pet(member9);
     }
 
     @AfterEach
@@ -180,6 +187,42 @@ class BillPriceSheetIntegrationTest {
         r = postSettle(customer, Arrays.asList(onCard), "0", "");
         assertEquals(0L, bills(customer), "卡抵扣行不能手改价");
         assertTrue(String.valueOf(r.getFlashMap().get("errMsg")).contains("不能手工改价"));
+    }
+
+    // ------------------------------------------------------------ 切片：手改价上限是带出成交价（折扣后），不是标价
+
+    @Test
+    void manualPriceAboveDealPriceButBelowListPriceIsRejected() throws Exception {
+        // 会员 9 折：标价 100 → 带出成交价 90；手改 95 高于带出价，即使低于标价也必须拒绝
+        BillForm.Item over = item("PRICE", rowDog, catWash, member9Pet, 9500, 1);
+        MvcResult r = postSettle(member9, Arrays.asList(over), "0", "");
+        assertEquals(0L, bills(member9), "手改价高于带出成交价不得落单");
+        assertTrue(String.valueOf(r.getFlashMap().get("errMsg")).contains("不能高于带出价格"));
+
+        // 手改价正好等于带出价 90：允许，且不产生差额
+        long billId = settleItems(member9, Arrays.asList(item("PRICE", rowDog, catWash, member9Pet, 9000, 1)),
+                "0", "");
+        Map<String, Object> line = line(billId);
+        assertEquals(9000, line.get("unit_price_cent"), "手改价 = 带出成交价");
+        assertEquals(1000, line.get("line_discount_cent"), "行折扣 = 标价 100 − 成交价 90");
+    }
+
+    @Test
+    void manualPriceBelowDealPriceOfMemberDiscountIsStoredAsLineDiscount() throws Exception {
+        // 会员 9 折带出 90；手改 88；整单再让 3 元 → 应收 = 88 − 3 = 85
+        long billId = settle(member9, item("PRICE", rowDog, catWash, member9Pet, 8800, 1), "3", "");
+
+        Map<String, Object> line = line(billId);
+        assertEquals(8800, line.get("unit_price_cent"), "成交价 = 手改价，不再叠加会员折扣");
+        assertEquals(8500, line.get("amount_cent"), "行金额 = 手改价 − 整单分摊");
+        assertEquals(1200, line.get("line_discount_cent"), "行折扣 = 标价 100 − 手改价 88");
+        assertEquals(300, line.get("discount_cent"), "整单折扣分摊单独落库");
+        Map<String, Object> b = bill(billId);
+        assertEquals(10000, b.get("total_cent"), "单据合计仍按标价");
+        assertEquals(300, b.get("discount_cent"));
+        assertEquals(8500, b.get("receivable_cent"), "应收 = Σ(成交价×数量) − 整单折扣分摊");
+        assertEquals("¥85.00", cellText(detailPage(billId), "data-sum-received"));
+        assertEquals("¥12.00", cellText(detailPage(billId), "data-line-discount"));
     }
 
     // ------------------------------------------------------------ 切片：会员组折扣 / 散客组

@@ -48,7 +48,7 @@
                 </td>
                 <td><b th:text="${i.name}"></b></td>
                 <td class="num" th:text="${ui.yuan(i.retailPriceCent)}"></td>
-                <td th:text="${ui.discount(i.discountType)} + (${i.discountType == 'RATE'} ? '（' + ${ui.yuan(i.discountRate)} + ' 折）' : '')"></td>
+                <td th:text="${ui.discount(i.discountType, i.discountRate)}"></td>
               </tr>
               <tr th:if="${#lists.isEmpty(batchItems)}">
                 <td colspan="4" class="muted">该分类下还没有美容单项</td>
@@ -86,7 +86,7 @@
             <tr th:each="i : ${batchItems}">
               <td><b th:text="${i.name}"></b></td>
               <td class="num" th:text="${ui.yuan(i.retailPriceCent)}"></td>
-              <td th:text="${ui.discount(i.discountType)} + (${i.discountType == 'RATE'} ? '（' + ${ui.yuan(i.discountRate)} + ' 折）' : '')"></td>
+              <td th:text="${ui.discount(i.discountType, i.discountRate)}"></td>
             </tr>
             <tr th:if="${#lists.isEmpty(batchItems)}"><td colspan="3" class="muted">该分类下还没有美容单项</td></tr>
             </tbody>

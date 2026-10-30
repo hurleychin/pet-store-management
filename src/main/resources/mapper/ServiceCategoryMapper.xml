@@ -40,21 +40,9 @@
         DELETE FROM service_category WHERE id = #{id}
     </delete>
 
-    <!-- 价格格子 / 美容单项由后续工单建表；哪张表还不存在，其子查询就替换为 0 -->
+    <!-- 引用计数：该分类下的价格格子数 + 美容单项数 -->
     <select id="countReferences" resultType="int">
-        SELECT
-          <choose>
-            <when test="cellExists">
-              (SELECT COUNT(*) FROM service_price_cell WHERE category_id = #{id})
-            </when>
-            <otherwise>0</otherwise>
-          </choose>
-        +
-          <choose>
-            <when test="beautyItemExists">
-              (SELECT COUNT(*) FROM service_beauty_item WHERE category_id = #{id})
-            </when>
-            <otherwise>0</otherwise>
-          </choose>
+        SELECT (SELECT COUNT(*) FROM service_price_cell WHERE category_id = #{id})
+             + (SELECT COUNT(*) FROM service_beauty_item WHERE category_id = #{id})
     </select>
 </mapper>

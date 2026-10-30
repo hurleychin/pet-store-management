@@ -240,6 +240,33 @@ class ServiceCategoryIntegrationTest {
     }
 
     @Test
+    void categoryReferencedByBeautyItemCannotBeDeleted() throws Exception {
+        MockHttpSession admin = admin();
+        mockMvc.perform(post("/services/categories/save").session(admin)
+                .param("name", PREFIX + "有单项").param("degree", "BEAUTY"));
+        long id = idOf(PREFIX + "有单项");
+        Long itemId = jdbc.queryForObject("INSERT INTO service_beauty_item(name, category_id, retail_price_cent) "
+                + "VALUES(?, ?, 2000) RETURNING id", Long.class, PREFIX + "剪指甲", id);
+        try {
+            mockMvc.perform(post("/services/categories/" + id + "/delete").session(admin))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("errMsg",
+                            "该服务分类已被价格格子或美容单项引用，不能删除，可改为隐藏"));
+            assertEquals(1, count(PREFIX + "有单项"), "有美容单项的分类不能删除");
+
+            jdbc.update("DELETE FROM service_beauty_item WHERE id = ?", itemId);
+            itemId = null;
+            mockMvc.perform(post("/services/categories/" + id + "/delete").session(admin))
+                    .andExpect(redirectedUrl("/services"));
+            assertEquals(0, count(PREFIX + "有单项"), "引用清空后可删除");
+        } finally {
+            if (itemId != null) {
+                jdbc.update("DELETE FROM service_beauty_item WHERE id = ?", itemId);
+            }
+        }
+    }
+
+    @Test
     void v13MigrationIsIdempotent() throws Exception {
         Long before = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.3'", Long.class);
