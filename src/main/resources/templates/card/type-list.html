@@ -21,13 +21,13 @@
                 <div class="field"><label>赠送次数</label><input type="number" name="giftQty" value="0" min="0"></div>
                 <div class="field"><label>售价（元）*</label><input name="priceYuan" required placeholder="1200"></div>
                 <div class="field"><label>有效天数 *</label><input type="number" name="validDays" value="365" min="1"></div>
-                <div class="field full"><label>适用服务（可多选，留空则核销时校验不匹配会被拒）</label>
+                <div class="field full"><label>适用美容单项（可多选）</label>
                   <div class="flex">
                     <label class="small" th:each="s : ${services}" style="margin-right:10px">
                       <input type="checkbox" name="serviceIds" th:value="${s.id}"> <span th:text="${s.name}"></span>
                     </label>
                   </div>
-                  <div class="hint">不勾选 = 不限服务</div>
+                  <div class="hint">不勾选 = 不限：美容单项与价目格子服务都可抵扣；勾选后只抵扣所选美容单项（按价目表开的服务不可用此卡，动卡到卡类型页重新勾选）</div>
                 </div>
               </div>
               <div class="mt16"><button class="btn" type="submit">保存</button></div>

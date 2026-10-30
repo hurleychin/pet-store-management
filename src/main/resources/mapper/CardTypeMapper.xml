@@ -16,8 +16,9 @@
 
     <sql id="base">
         <!-- 用 ,id, 包裹做精确匹配，避免 id=3 误匹配到 "13,23" -->
-        SELECT t.*, (SELECT GROUP_CONCAT(s.name) FROM service_item s
-                     WHERE ',' || t.service_ids || ',' LIKE '%,' || s.id || ',%') AS service_names
+        <!-- #7 适用服务存美容单项 id -->
+        SELECT t.*, (SELECT GROUP_CONCAT(b.name) FROM service_beauty_item b
+                     WHERE ',' || t.service_ids || ',' LIKE '%,' || b.id || ',%') AS service_names
         FROM card_type t
     </sql>
 

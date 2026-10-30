@@ -9,7 +9,6 @@
         <result property="serviceId" column="service_id"/>
         <result property="appointDate" column="appoint_date"/>
         <result property="slot" column="slot"/>
-        <result property="sizeTier" column="size_tier"/>
         <result property="status" column="status"/>
         <result property="billId" column="bill_id"/>
         <result property="remark" column="remark"/>
@@ -20,18 +19,21 @@
         <result property="ownerName" column="owner_name"/>
         <result property="ownerPhone" column="owner_phone"/>
         <result property="serviceName" column="service_name"/>
+        <result property="serviceNameSnapshot" column="service_name_snapshot"/>
         <result property="billNo" column="bill_no"/>
     </resultMap>
 
     <sql id="base">
         SELECT a.*, p.name AS pet_name, p.breed,
                c.name AS owner_name, c.phone AS owner_phone,
-               s.name AS service_name,
+               COALESCE(s.name, a.service_name_snapshot) AS service_name,
+               a.service_name_snapshot,
                b.bill_no AS bill_no
           FROM appointment a
           JOIN pet p ON p.id = a.pet_id
           JOIN customer c ON c.id = a.customer_id
-          JOIN service_item s ON s.id = a.service_id
+          <!-- #7 service_id 指向美容单项；历史预约迁移后为空，名称由建单时的快照兜底 -->
+          LEFT JOIN service_beauty_item s ON s.id = a.service_id
           LEFT JOIN bill b ON b.id = a.bill_id
     </sql>
 
@@ -51,11 +53,12 @@
           AND status IN ('BOOKED', 'ARRIVED')
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO appointment(customer_id, pet_id, service_id, appoint_date, slot, size_tier,
-               status, remark, created_at, created_by)
-        VALUES(#{customerId}, #{petId}, #{serviceId}, #{appointDate}, #{slot}, #{sizeTier},
-               #{status}, #{remark}, #{createdAt}, #{createdBy})
+    <!-- 旧库迁移后多出 service_name_snapshot 列：建单时写入项目名快照；新库无此列，由 AppointmentMapper#insertWithoutSnapshot 兜底 -->
+    <insert id="insertWithSnapshot" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO appointment(customer_id, pet_id, service_id, appoint_date, slot,
+               status, remark, created_at, created_by, service_name_snapshot)
+        VALUES(#{customerId}, #{petId}, #{serviceId}, #{appointDate}, #{slot},
+               #{status}, #{remark}, #{createdAt}, #{createdBy}, #{serviceNameSnapshot})
     </insert>
 
     <!-- 状态机流转只允许从 BOOKED 出发，避免并发/重复点击把终态改回去 -->

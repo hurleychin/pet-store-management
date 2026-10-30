@@ -213,6 +213,8 @@ public class CommissionService {
             if (staff == null || !staff.getIsActive()) {
                 continue;
             }
+            // #7 服务行：美容单项行按单项 id 匹配 SERVICE 规则；价目格子行的 ref_id 是价目行 id，
+            // 与美容单项 id 空间不同，只命中「不限服务」（ref_id 为空）与 ALL 规则，未命中则不提成
             CommissionRule rule = CommissionCalculator.pick(rules,
                     item.getItemType(), item.getRefId(), staff.getRole(), bill.getBusinessDate());
             if (rule == null) {

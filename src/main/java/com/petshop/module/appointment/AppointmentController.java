@@ -4,7 +4,7 @@ import com.petshop.common.SessionUser;
 import com.petshop.module.customer.CustomerMapper;
 import com.petshop.module.customer.Pet;
 import com.petshop.module.customer.PetMapper;
-import com.petshop.module.svc.ServiceItemMapper;
+import com.petshop.module.svc.ServiceBeautyItemService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,14 +22,14 @@ public class AppointmentController {
     private final AppointmentService service;
     private final CustomerMapper customerMapper;
     private final PetMapper petMapper;
-    private final ServiceItemMapper serviceItemMapper;
+    private final ServiceBeautyItemService beautyItemService;
 
     public AppointmentController(AppointmentService service, CustomerMapper customerMapper,
-                                 PetMapper petMapper, ServiceItemMapper serviceItemMapper) {
+                                 PetMapper petMapper, ServiceBeautyItemService beautyItemService) {
         this.service = service;
         this.customerMapper = customerMapper;
         this.petMapper = petMapper;
-        this.serviceItemMapper = serviceItemMapper;
+        this.beautyItemService = beautyItemService;
     }
 
     /** 预约看板（按日） */
@@ -45,7 +45,8 @@ public class AppointmentController {
     @GetMapping("/appointments/new")
     public String createPage(@RequestParam(required = false) Long customerId, Model model) {
         model.addAttribute("customers", customerMapper.listActive());
-        model.addAttribute("services", serviceItemMapper.findActive());
+        // #7 预约服务改选美容单项：只列启用且所属分类可见的（开单时同样规则）
+        model.addAttribute("services", beautyItemService.findBookable());
         model.addAttribute("customerId", customerId);
         if (customerId != null) {
             model.addAttribute("pets", petMapper.findByOwner(customerId));

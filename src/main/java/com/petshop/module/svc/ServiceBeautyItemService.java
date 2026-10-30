@@ -26,6 +26,25 @@ public class ServiceBeautyItemService {
         return mapper.findAll();
     }
 
+    /** 可预约 / 可挂卡的美容单项：启用且所属分类可见。 */
+    public List<ServiceBeautyItem> findBookable() {
+        List<ServiceBeautyItem> result = new ArrayList<>();
+        for (ServiceBeautyItem item : mapper.findAll()) {
+            if (item.getIsActive() && isCategoryVisible(item.getCategoryId())) {
+                result.add(item);
+            }
+        }
+        return result;
+    }
+
+    private boolean isCategoryVisible(Long categoryId) {
+        if (categoryId == null) {
+            return false;
+        }
+        ServiceCategory category = categoryMapper.findById(categoryId);
+        return category != null && category.getIsVisible();
+    }
+
     /** 新增（id 为空）或编辑：名称、分类、零售价、服务折扣必填。 */
     @Transactional(rollbackFor = Exception.class)
     public ServiceBeautyItem save(Long id, String name, Long categoryId, String retailPriceYuan,

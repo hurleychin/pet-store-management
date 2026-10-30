@@ -62,7 +62,7 @@
     <select id="findAllRules" resultType="com.petshop.module.staff.CommissionRule">
         SELECT r.*,
                CASE r.scope
-                 WHEN 'SERVICE' THEN (SELECT name FROM service_item WHERE id = r.ref_id)
+                 WHEN 'SERVICE' THEN (SELECT name FROM service_beauty_item WHERE id = r.ref_id)
                  WHEN 'PRODUCT' THEN (SELECT name FROM product WHERE id = r.ref_id)
                  ELSE NULL END AS ref_name
         FROM commission_rule r

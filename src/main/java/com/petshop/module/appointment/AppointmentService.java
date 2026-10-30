@@ -29,13 +29,16 @@ public class AppointmentService {
     private final PetMapper petMapper;
     private final BoardingOrderMapper boardingOrderMapper;
     private final ConfigService configService;
+    private final com.petshop.module.svc.ServiceBeautyItemMapper beautyItemMapper;
 
     public AppointmentService(AppointmentMapper mapper, PetMapper petMapper,
-                              BoardingOrderMapper boardingOrderMapper, ConfigService configService) {
+                              BoardingOrderMapper boardingOrderMapper, ConfigService configService,
+                              com.petshop.module.svc.ServiceBeautyItemMapper beautyItemMapper) {
         this.mapper = mapper;
         this.petMapper = petMapper;
         this.boardingOrderMapper = boardingOrderMapper;
         this.configService = configService;
+        this.beautyItemMapper = beautyItemMapper;
     }
 
     public Appointment detail(Long id) {
@@ -59,7 +62,7 @@ public class AppointmentService {
     public Long create(Long customerId, Long petId, Long serviceId, String date,
                        String slot, String remark, SessionUser user) {
         if (customerId == null || petId == null || serviceId == null) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "客户、宠物、服务项目必填");
+            throw new BizException(ErrorCode.PARAM_INVALID, "客户、宠物、美容单项必填");
         }
         if (date == null || !DATE_PAT.matcher(date.trim()).matches()
                 || slot == null || !SLOT_PAT.matcher(slot.trim()).matches()) {
@@ -79,18 +82,27 @@ public class AppointmentService {
         if (used >= capacity) {
             throw new BizException(ErrorCode.SLOT_FULL, "该时段预约已满（" + used + "/" + capacity + "）");
         }
+        com.petshop.module.svc.ServiceBeautyItem item = beautyItemMapper.findById(serviceId);
+        if (item == null || !item.getIsActive()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "美容单项不存在或已停用");
+        }
         Appointment a = new Appointment();
         a.setCustomerId(customerId);
         a.setPetId(petId);
         a.setServiceId(serviceId);
+        a.setServiceNameSnapshot(item.getName());
         a.setAppointDate(d);
         a.setSlot(s);
-        a.setSizeTier(pet.sizeTier());
         a.setStatus("BOOKED");
         a.setRemark(remark);
         a.setCreatedAt(LocalDateTime.now());
         a.setCreatedBy(user.getDisplayName());
-        mapper.insert(a);
+        try {
+            mapper.insertWithSnapshot(a);
+        } catch (org.springframework.jdbc.BadSqlGrammarException e) {
+            // 新库 appointment 无 service_name_snapshot 列（快照只服务旧库迁移出来的历史预约）
+            mapper.insertWithoutSnapshot(a);
+        }
         log.info("新建预约 id={} pet={} {} {} by={}", a.getId(), pet.getName(), date, s,
                 user.getDisplayName());
         return a.getId();
