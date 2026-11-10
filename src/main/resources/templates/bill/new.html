@@ -125,6 +125,8 @@
 <!-- 放在 data-* 属性里：属性值经 HTML 转义后由浏览器还原，避免 <script> raw text 中 &quot; 不解码导致 JSON.parse 失败 -->
 <div id="dataTag" th:attr="data-json=${dataJson}" style="display:none"></div>
 <input type="hidden" id="apptServiceId" th:value="${appointment != null} ? ${appointment.serviceId} : ''">
+<input type="hidden" id="apptServiceType" th:value="${appointment != null} ? ${appointment.serviceType} : ''">
+<input type="hidden" id="apptServiceName" th:value="${appointment != null and appointment.serviceName != null} ? ${appointment.serviceName} : ''">
 <input type="hidden" id="apptPetId" th:value="${appointment != null} ? ${appointment.petId} : ''">
 <script>
 var DATA = JSON.parse(document.getElementById('dataTag').getAttribute('data-json') || '{}');
@@ -406,17 +408,29 @@ render();
 
 /* v1.1 F9：预约到店转开单——预填宠物与服务项 */
 (function () {
-  // #7 预约的 service_id 指向美容单项；历史预约迁移后为空，只预填宠物
+  // 预约服务分两类来源：BEAUTY=美容单项（可直接带入明细），CATEGORY=价目表服务分类（需收银员按体型行手选分类）
   var sid = parseInt(document.getElementById('apptServiceId').value, 10);
+  var stype = document.getElementById('apptServiceType').value || 'BEAUTY';
+  var sname = document.getElementById('apptServiceName').value || '';
   var pid = parseInt(document.getElementById('apptPetId').value, 10);
   if (pid) {
     selectPet(pid);
   }
   if (sid && pid) {
-    if (beautyById(sid)) { addBeauty(sid); } else { alert('预约对应的美容单项已停用或不对收银台显示，请手动选择服务'); }
-    if (document.getElementById('formErr')) {
-      document.getElementById('formErr').textContent = '已带入预约服务，请核对明细后结账';
-      document.getElementById('formErr').style.color = 'var(--primary)';
+    if (stype === 'CATEGORY') {
+      var tip = '预约项目「' + sname + '」（价目表分类），请在价格格子里按体型选择该分类';
+      if (document.getElementById('formErr')) {
+        document.getElementById('formErr').textContent = tip;
+        document.getElementById('formErr').style.color = 'var(--primary)';
+      }
+    } else if (beautyById(sid)) {
+      addBeauty(sid);
+      if (document.getElementById('formErr')) {
+        document.getElementById('formErr').textContent = '已带入预约服务，请核对明细后结账';
+        document.getElementById('formErr').style.color = 'var(--primary)';
+      }
+    } else {
+      alert('预约对应的美容单项已停用或不对收银台显示，请手动选择服务');
     }
   }
 })();

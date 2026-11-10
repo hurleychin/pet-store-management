@@ -378,7 +378,8 @@ CREATE TABLE IF NOT EXISTS appointment (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   customer_id  INTEGER NOT NULL REFERENCES customer(id),
   pet_id       INTEGER NOT NULL REFERENCES pet(id),
-  service_id   INTEGER REFERENCES service_beauty_item(id), -- #7 美容单项；历史预约迁移后为空；转开单预填该单项
+  service_id   INTEGER,                      -- 按 service_type 解释：BEAUTY=美容单项 id，CATEGORY=服务分类 id；历史预约迁移后为空
+  service_type TEXT    NOT NULL DEFAULT 'BEAUTY', -- BEAUTY 美容单项 / CATEGORY 价目表服务分类
   appoint_date TEXT    NOT NULL,             -- 预约日 'yyyy-MM-dd'
   slot         TEXT    NOT NULL,             -- 时段 'HH:mm'，30 分钟粒度
   -- size_tier 已废弃（#7 预约不再按体型档估价）；旧库保留该列占位，新库不建

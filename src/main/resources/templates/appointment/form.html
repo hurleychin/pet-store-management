@@ -38,11 +38,20 @@
             </div>
           </div>
           <div class="field">
-            <label>美容单项</label>
-            <select class="input" name="serviceId" required>
+            <label>服务项目</label>
+            <select class="input" name="serviceSelect" id="serviceSel" required onchange="syncService()">
               <option value="" disabled selected>— 请选择 —</option>
-              <option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}"></option>
+              <optgroup label="价目表项目" th:if="${categories != null and !categories.isEmpty()}">
+                <option th:each="c : ${categories}" th:value="'CATEGORY:' + ${c.id}"
+                        th:text="${c.name}" th:attr="data-type='CATEGORY'"></option>
+              </optgroup>
+              <optgroup label="美容单项" th:if="${services != null and !services.isEmpty()}">
+                <option th:each="s : ${services}" th:value="'BEAUTY:' + ${s.id}"
+                        th:text="${s.name}" th:attr="data-type='BEAUTY'"></option>
+              </optgroup>
             </select>
+            <input type="hidden" name="serviceId" id="serviceId">
+            <input type="hidden" name="serviceType" id="serviceType">
           </div>
           <div class="field">
             <label>预约日期</label>
@@ -70,6 +79,23 @@
   </div>
 </div>
 <script>
+function syncService() {
+  var sel = document.getElementById('serviceSel');
+  var v = sel.value || '';
+  var i = v.indexOf(':');
+  if (i > 0) {
+    document.getElementById('serviceType').value = v.substring(0, i);
+    document.getElementById('serviceId').value = v.substring(i + 1);
+  } else {
+    document.getElementById('serviceType').value = '';
+    document.getElementById('serviceId').value = '';
+  }
+}
+// 提交前兜底同步一次，确保隐藏字段与下拉一致
+document.addEventListener('DOMContentLoaded', function () {
+  var f = document.querySelector('form[action="/appointments/save"]');
+  if (f) { f.addEventListener('submit', syncService); }
+});
 function checkBoarding(sel) {
   // 寄养互斥提示：由服务端在提交时最终校验，这里仅做前端提示
   var row = document.getElementById('confirmRow');

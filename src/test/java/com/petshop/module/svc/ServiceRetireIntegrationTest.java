@@ -178,7 +178,8 @@ class ServiceRetireIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertTrue(form.contains(P + "剪指甲"), "预约服务下拉应列出美容单项");
-        assertFalse(form.contains(P + "0-3kg"), "预约服务下拉不应再出现价目行");
+        assertTrue(form.contains(P + "精洗"), "预约服务下拉应列出价目表服务分类项目");
+        assertFalse(form.contains(P + "0-3kg"), "价目行（带体型档）本身仍不作为预约选项，只列服务分类");
 
         mockMvc.perform(post("/appointments/save").session(admin)
                         .param("customerId", String.valueOf(customer))
@@ -229,8 +230,54 @@ class ServiceRetireIntegrationTest {
         assertTrue(err != null && err.toString().contains("隐藏"), "应提示分类已隐藏，实际：" + err);
     }
 
-    // ------------------------------------------------------------ 次卡类型适用美容单项 + 卡适用性校验
+    @Test
+    void appointmentWithCategorySavesAndPrefillsHintAfterArrival() throws Exception {
+        mockMvc.perform(post("/appointments/save").session(admin)
+                        .param("customerId", String.valueOf(customer))
+                        .param("petId", String.valueOf(pet))
+                        .param("serviceId", String.valueOf(cat))
+                        .param("serviceType", "CATEGORY")
+                        .param("appointDate", java.time.LocalDate.now().toString())
+                        .param("slot", "11:00"))
+                .andExpect(status().is3xxRedirection());
 
+        Map<String, Object> appt = jdbc.queryForMap(
+                "SELECT * FROM appointment WHERE customer_id = ? ORDER BY id DESC LIMIT 1", customer);
+        assertEquals("CATEGORY", String.valueOf(appt.get("service_type")), "预约应记录来源为价目表分类");
+        assertTrue(String.valueOf(cat).equals(String.valueOf(appt.get("service_id"))), "预约应保存服务分类 id");
+        long apptId = ((Number) appt.get("id")).longValue();
+
+        mockMvc.perform(post("/appointments/" + apptId + "/arrive").session(admin))
+                .andExpect(status().is3xxRedirection());
+
+        String billPage = mockMvc.perform(get("/bills/new").param("customerId", String.valueOf(customer))
+                        .param("appointmentId", String.valueOf(apptId)).session(admin))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(billPage.contains("apptServiceType\" value=\"CATEGORY\""), "转开单页应带出预约来源类型");
+        assertTrue(billPage.contains("apptPetId\" value=\"" + pet + "\""), "转开单页应预填预约宠物");
+    }
+
+    @Test
+    void appointmentWithHiddenCategoryIsRejected() throws Exception {
+        jdbc.update("UPDATE service_category SET is_visible = 0 WHERE id = ?", cat);
+        org.springframework.test.web.servlet.MvcResult r = mockMvc.perform(post("/appointments/save").session(admin)
+                        .param("customerId", String.valueOf(customer))
+                        .param("petId", String.valueOf(pet))
+                        .param("serviceId", String.valueOf(cat))
+                        .param("serviceType", "CATEGORY")
+                        .param("appointDate", java.time.LocalDate.now().toString())
+                        .param("slot", "11:30"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        assertEquals(0L, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM appointment WHERE customer_id = ?", Long.class, customer),
+                "隐藏分类不得预约");
+        Object err = r.getFlashMap().get("errMsg");
+        assertTrue(err != null && err.toString().contains("隐藏"), "应提示分类已隐藏，实际：" + err);
+    }
+
+    // ------------------------------------------------------------ 次卡类型适用美容单项 + 卡适用性校验
     @Test
     void cardTypeScopedToBeautyItemAllowsOnlyThatItem() throws Exception {
         String typesPage = mockMvc.perform(get("/card-types").session(admin))

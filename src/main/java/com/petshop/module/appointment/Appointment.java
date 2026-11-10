@@ -9,7 +9,8 @@ public class Appointment {
     private Long id;
     private Long customerId;
     private Long petId;
-    private Long serviceId;       // #7 美容单项 service_beauty_item.id；历史预约迁移后为空
+    private Long serviceId;       // 按 serviceType 解释：BEAUTY=美容单项 id，CATEGORY=服务分类 id；历史预约迁移后为空
+    private String serviceType;   // BEAUTY 美容单项 / CATEGORY 价目表服务分类
     private LocalDate appointDate;
     private String slot;          // 'HH:mm'
     private String status;        // BOOKED/ARRIVED/DONE/CANCELLED/NO_SHOW
@@ -36,6 +37,8 @@ public class Appointment {
     public void setPetId(Long petId) { this.petId = petId; }
     public Long getServiceId() { return serviceId; }
     public void setServiceId(Long serviceId) { this.serviceId = serviceId; }
+    public String getServiceType() { return serviceType; }
+    public void setServiceType(String serviceType) { this.serviceType = serviceType; }
     public LocalDate getAppointDate() { return appointDate; }
     public void setAppointDate(LocalDate appointDate) { this.appointDate = appointDate; }
     public String getSlot() { return slot; }

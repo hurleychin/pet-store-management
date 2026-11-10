@@ -196,6 +196,8 @@ public class DataInitializer implements ApplicationRunner {
             registerVersion("v1.4", "旧服务项目退场：新库无 appointment 表，跳过");
             return;
         }
+        // 预约区分项目来源（BEAUTY 美容单项 / CATEGORY 价目表服务分类）：幂等增列，先于可能提前 return 的判断。
+        addColumnIfMissing("appointment", "service_type", "TEXT NOT NULL DEFAULT 'BEAUTY'");
         Integer done = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM schema_version WHERE version = 'v1.4'", Integer.class);
         boolean legacy = tableExists("service_item");
@@ -365,12 +367,15 @@ public class DataInitializer implements ApplicationRunner {
                 "service_id TEXT REFERENCES service_beauty_item(id)");
         ddl = replaceColumnDefinition(ddl, "size_tier", "size_tier TEXT /* #7 废弃：预约不再按体型档估价 */");
         ddl = ddl.replace("REFERENCES service_item", "REFERENCES service_beauty_item");
+        if (!ddl.contains("service_type")) {
+            ddl = ddl.replace("service_id TEXT", "service_id TEXT, service_type TEXT NOT NULL DEFAULT 'BEAUTY'");
+        }
         jdbc.execute("DROP TABLE IF EXISTS appointment_new");
         jdbc.execute(renameCreateTable(ddl, "appointment_new"));
-        jdbc.execute("INSERT INTO appointment_new(id, customer_id, pet_id, service_id, appoint_date, slot, "
+        jdbc.execute("INSERT INTO appointment_new(id, customer_id, pet_id, service_id, service_type, appoint_date, slot, "
                 + "size_tier, status, bill_id, remark, created_at, created_by, service_name_snapshot) "
-                // 旧 service_id 已清空（空意味着未指定），原样搬运；新建预约时必须选择美容单项
-                + "SELECT id, customer_id, pet_id, NULLIF(service_id, ''), appoint_date, slot, "
+                // 旧 service_id 已清空（空意味着未指定），原样搬运；历史预约一律视为美容单项来源
+                + "SELECT id, customer_id, pet_id, NULLIF(service_id, ''), 'BEAUTY', appoint_date, slot, "
                 + "NULL, status, bill_id, remark, created_at, created_by, service_name_snapshot FROM appointment");
         jdbc.execute("DROP TABLE appointment");
         jdbc.execute("ALTER TABLE appointment_new RENAME TO appointment");

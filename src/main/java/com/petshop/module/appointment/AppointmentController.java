@@ -23,13 +23,16 @@ public class AppointmentController {
     private final CustomerMapper customerMapper;
     private final PetMapper petMapper;
     private final ServiceBeautyItemService beautyItemService;
+    private final com.petshop.module.svc.ServiceCategoryMapper categoryMapper;
 
     public AppointmentController(AppointmentService service, CustomerMapper customerMapper,
-                                 PetMapper petMapper, ServiceBeautyItemService beautyItemService) {
+                                 PetMapper petMapper, ServiceBeautyItemService beautyItemService,
+                                 com.petshop.module.svc.ServiceCategoryMapper categoryMapper) {
         this.service = service;
         this.customerMapper = customerMapper;
         this.petMapper = petMapper;
         this.beautyItemService = beautyItemService;
+        this.categoryMapper = categoryMapper;
     }
 
     /** 预约看板（按日） */
@@ -45,7 +48,8 @@ public class AppointmentController {
     @GetMapping("/appointments/new")
     public String createPage(@RequestParam(required = false) Long customerId, Model model) {
         model.addAttribute("customers", customerMapper.listActive());
-        // #7 预约服务改选美容单项：只列启用且所属分类可见的（开单时同样规则）
+        // 预约服务覆盖两类来源：价目表服务分类（可见）+ 美容单项（启用且分类可见）
+        model.addAttribute("categories", visibleCategories());
         model.addAttribute("services", beautyItemService.findBookable());
         model.addAttribute("customerId", customerId);
         if (customerId != null) {
@@ -54,9 +58,22 @@ public class AppointmentController {
         return "appointment/form";
     }
 
+    /** 价目表可见服务分类（可预约的价目项目）。 */
+    private java.util.List<com.petshop.module.svc.ServiceCategory> visibleCategories() {
+        java.util.List<com.petshop.module.svc.ServiceCategory> result = new java.util.ArrayList<>();
+        for (com.petshop.module.svc.ServiceCategory c : categoryMapper.findAll()) {
+            if (c.getIsVisible()) {
+                result.add(c);
+            }
+        }
+        return result;
+    }
+
     @PostMapping("/appointments/save")
     public String save(@RequestParam Long customerId, @RequestParam Long petId,
-                       @RequestParam Long serviceId, @RequestParam String appointDate,
+                       @RequestParam Long serviceId,
+                       @RequestParam(required = false, defaultValue = "BEAUTY") String serviceType,
+                       @RequestParam String appointDate,
                        @RequestParam String slot, @RequestParam(required = false) String remark,
                        @RequestParam(required = false) boolean confirmBoarding,
                        HttpSession session, RedirectAttributes ra) {
@@ -67,7 +84,7 @@ public class AppointmentController {
             return "redirect:/appointments/new?customerId=" + customerId;
         }
         String finalRemark = service.petInBoarding(petId) ? "（该宠物在店寄养中）" + (remark == null ? "" : remark) : remark;
-        Long id = service.create(customerId, petId, serviceId, appointDate, slot, finalRemark, user);
+        Long id = service.create(customerId, petId, serviceId, serviceType, appointDate, slot, finalRemark, user);
         ra.addFlashAttribute("okMsg", "预约已创建");
         return "redirect:/appointments?date=" + LocalDate.parse(appointDate);
     }

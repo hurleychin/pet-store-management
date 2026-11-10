@@ -60,12 +60,16 @@ public class AppointmentService {
         return mapper.findStale(LocalDate.now().toString());
     }
 
-    /** 新建预约（时段容量 BR-13/FR-M9-02） */
+    /** 新建预约（时段容量 BR-13/FR-M9-02）。serviceType：BEAUTY=美容单项，CATEGORY=价目表服务分类。 */
     @Transactional(rollbackFor = Exception.class)
-    public Long create(Long customerId, Long petId, Long serviceId, String date,
+    public Long create(Long customerId, Long petId, Long serviceId, String serviceType, String date,
                        String slot, String remark, SessionUser user) {
+        String type = serviceType == null || serviceType.trim().isEmpty() ? "BEAUTY" : serviceType.trim();
         if (customerId == null || petId == null || serviceId == null) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "客户、宠物、美容单项必填");
+            throw new BizException(ErrorCode.PARAM_INVALID, "客户、宠物、服务项目必填");
+        }
+        if (!"BEAUTY".equals(type) && !"CATEGORY".equals(type)) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "预约服务来源类型不合法");
         }
         if (date == null || !DATE_PAT.matcher(date.trim()).matches()
                 || slot == null || !SLOT_PAT.matcher(slot.trim()).matches()) {
@@ -85,6 +89,39 @@ public class AppointmentService {
         if (used >= capacity) {
             throw new BizException(ErrorCode.SLOT_FULL, "该时段预约已满（" + used + "/" + capacity + "）");
         }
+        String serviceName = resolveServiceName(type, serviceId);
+        Appointment a = new Appointment();
+        a.setCustomerId(customerId);
+        a.setPetId(petId);
+        a.setServiceId(serviceId);
+        a.setServiceType(type);
+        a.setServiceNameSnapshot(serviceName);
+        a.setAppointDate(d);
+        a.setSlot(s);
+        a.setStatus("BOOKED");
+        a.setRemark(remark);
+        a.setCreatedAt(LocalDateTime.now());
+        a.setCreatedBy(user.getDisplayName());
+        try {
+            mapper.insertWithSnapshot(a);
+        } catch (org.springframework.jdbc.BadSqlGrammarException e) {
+            // 老库 appointment 尚无 service_name_snapshot 列时回退（快照仅服务旧库历史预约）
+            mapper.insertWithoutSnapshot(a);
+        }
+        log.info("新建预约 id={} pet={} type={} {} {} by={}", a.getId(), pet.getName(), type, date, s,
+                user.getDisplayName());
+        return a.getId();
+    }
+
+    /** 校验所选项目并按来源类型返回名称：BEAUTY 校验美容单项启用且分类可见，CATEGORY 校验分类存在且可见。 */
+    private String resolveServiceName(String type, Long serviceId) {
+        if ("CATEGORY".equals(type)) {
+            com.petshop.module.svc.ServiceCategory category = categoryMapper.findById(serviceId);
+            if (category == null || !category.getIsVisible()) {
+                throw new BizException(ErrorCode.PARAM_INVALID, "服务分类不存在或已隐藏，不能预约");
+            }
+            return category.getName();
+        }
         com.petshop.module.svc.ServiceBeautyItem item = beautyItemMapper.findById(serviceId);
         if (item == null || !item.getIsActive()) {
             throw new BizException(ErrorCode.PARAM_INVALID, "美容单项不存在或已停用");
@@ -96,26 +133,7 @@ public class AppointmentService {
             throw new BizException(ErrorCode.PARAM_INVALID,
                     "美容单项「" + item.getName() + "」所属分类已隐藏，不能预约");
         }
-        Appointment a = new Appointment();
-        a.setCustomerId(customerId);
-        a.setPetId(petId);
-        a.setServiceId(serviceId);
-        a.setServiceNameSnapshot(item.getName());
-        a.setAppointDate(d);
-        a.setSlot(s);
-        a.setStatus("BOOKED");
-        a.setRemark(remark);
-        a.setCreatedAt(LocalDateTime.now());
-        a.setCreatedBy(user.getDisplayName());
-        try {
-            mapper.insertWithSnapshot(a);
-        } catch (org.springframework.jdbc.BadSqlGrammarException e) {
-            // 新库 appointment 无 service_name_snapshot 列（快照只服务旧库迁移出来的历史预约）
-            mapper.insertWithoutSnapshot(a);
-        }
-        log.info("新建预约 id={} pet={} {} {} by={}", a.getId(), pet.getName(), date, s,
-                user.getDisplayName());
-        return a.getId();
+        return item.getName();
     }
 
     /** BR-13：宠物是否在店寄养（前端强提示用） */
