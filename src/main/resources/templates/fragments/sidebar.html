@@ -16,15 +16,16 @@
     <div class="nav-group-title">服务与商品</div>
     <a th:href="@{/products}" data-nav="/products"><i data-lucide="package" class="ico"></i>商品库存</a>
     <a th:href="@{/services}" data-nav="/services"><i data-lucide="scissors" class="ico"></i>洗护美容价目</a>
+    <div class="nav-group-title">服务预约</div>
+    <a th:href="@{/appointments}" data-nav="/appointments"><i data-lucide="calendar-check" class="ico"></i>预约看板</a>
+    <a th:href="@{/appointments/new}" data-nav="/appointments/new"><i data-lucide="calendar-plus" class="ico"></i>新建预约</a>
+    <div class="nav-group-title">寄养</div>
+    <a th:href="@{/boarding}" data-nav="/boarding"><i data-lucide="bed-double" class="ico"></i>寄养看板</a>
+    <a th:href="@{/boarding/new}" data-nav="/boarding/new"><i data-lucide="square-plus" class="ico"></i>新建寄养</a>
+    <a th:if="${session.sessionUser != null and session.sessionUser.isAdmin()}" th:href="@{/boarding/rooms}" data-nav="/boarding/rooms"><i data-lucide="door-open" class="ico"></i>笼位管理</a>
     <div class="nav-group-title">报表</div>
     <a th:href="@{/reports/daily}" data-nav="/reports/daily"><i data-lucide="trending-up" class="ico"></i>日营业汇总</a>
     <a th:href="@{/reports/monthly}" data-nav="/reports/monthly"><i data-lucide="calendar-days" class="ico"></i>月度汇总</a>
-    <div class="nav-group-title">寄养·预约</div>
-    <a th:href="@{/boarding}" data-nav="/boarding"><i data-lucide="bed-double" class="ico"></i>寄养看板</a>
-    <a th:href="@{/boarding/new}" data-nav="/boarding/new"><i data-lucide="square-plus" class="ico"></i>新建寄养</a>
-    <a th:href="@{/appointments}" data-nav="/appointments"><i data-lucide="calendar-check" class="ico"></i>预约看板</a>
-    <a th:href="@{/appointments/new}" data-nav="/appointments/new"><i data-lucide="calendar-plus" class="ico"></i>新建预约</a>
-    <a th:if="${session.sessionUser != null and session.sessionUser.isAdmin()}" th:href="@{/boarding/rooms}" data-nav="/boarding/rooms"><i data-lucide="door-open" class="ico"></i>笼位管理</a>
     <div class="nav-group-title" th:if="${session.sessionUser != null and session.sessionUser.isAdmin()}">系统</div>
     <a th:if="${session.sessionUser != null and session.sessionUser.isAdmin()}" th:href="@{/system/users}" data-nav="/system/users"><i data-lucide="user-cog" class="ico"></i>用户管理</a>
     <a th:if="${session.sessionUser != null and session.sessionUser.isAdmin()}" th:href="@{/system/config}" data-nav="/system/config"><i data-lucide="settings" class="ico"></i>门店参数</a>
